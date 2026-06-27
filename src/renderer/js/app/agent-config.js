@@ -74,8 +74,10 @@
     window.i18n.next();
     cloak._updateLangUI();
     cloak._updateThemeUI(document.documentElement.getAttribute('data-theme') || 'dark');
-    // Refresh dynamic lists so translations re-render
-    cloak.agentLoadSkills();
+    // Refresh the currently visible tab so its dynamic strings re-render
+    // in the new language. Falls back to agent skills if no tab is active.
+    if (cloak.reloadCurrentTab) cloak.reloadCurrentTab();
+    else cloak.agentLoadSkills();
   };
 
   cloak._updateLangUI = function() {
@@ -91,6 +93,7 @@
   // Listen for language changes
   document.addEventListener('cloak-language-change', function() {
     cloak._updateLangUI();
+    if (cloak.reloadCurrentTab) cloak.reloadCurrentTab();
   });
   // ── LLM Config ──
   cloak.agentLoadConfig = function() {

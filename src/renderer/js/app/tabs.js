@@ -69,6 +69,16 @@
     else if (tab === "activity") cloak.loadActivity();
   };
 
+  cloak.reloadCurrentTab = function () {
+    cloak.applyI18n && cloak.applyI18n();
+    if (window.i18n && window.i18n.apply) window.i18n.apply();
+    cloak.loadTab(state.currentTab);
+  };
+
+  cloak.applyI18n = function () {
+    if (window.i18n && window.i18n.apply) { try { window.i18n.apply(); } catch (e) {} }
+  };
+
   cloak.clearCache = function (dirId) { api.storage.clearCache(dirId).then(function (r) { toast(r.message || "Cache cleared", "success"); cloak.loadStorage(); }); };
 
   cloak.clearAllCaches = function () { api.storage.clearCache().then(function (r) { toast(r.message || "Caches cleared", "success"); cloak.loadStorage(); }); };
