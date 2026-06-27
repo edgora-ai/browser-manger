@@ -10,6 +10,9 @@
   var esc = helpers.esc;
   var escAttr = helpers.escAttr;
   var fmt = helpers.fmt;
+  // i18n helper: returns the translated string, falling back to the given
+  // English default when the runtime is unavailable.
+  function t(key, fallback) { return window.i18n ? window.i18n.t(key, fallback) : fallback; }
   var shortPath = helpers.shortPath;
   var renderChatMarkdown = helpers.renderChatMarkdown;
   var renderInlineMarkdown = helpers.renderInlineMarkdown;
@@ -72,7 +75,7 @@
         var c = list[i];
         var isActive = c.id === state.agentActiveConvId;
         html += '<div data-role="cmd" data-cmd="agentSelectConv" data-cmd-arg="' + escAttr(c.id) + '" class="agent-conv-item" style="padding:10px 12px;cursor:pointer;' + (isActive ? 'background:var(--primary-bg);' : '') + '">';
-        html += '<div style="font-weight:500;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(c.title || 'New Chat') + '</div>';
+        html += '<div style="font-weight:500;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(c.title || t('agent.chat-title', 'New Chat')) + '</div>';
         html += '<div style="color:var(--text-muted);font-size:10px;margin-top:2px;">' + (c.messageCount || 0) + ' msgs</div>';
         html += '</div>';
       }
@@ -82,7 +85,7 @@
       }
     }).catch(function(e) {
       console.error('Load conversations:', e);
-      document.getElementById('agent-conv-list').innerHTML = '<div style="color:var(--danger);font-size:11px;text-align:center;padding:16px;">Failed to load conversations<br><button class="btn btn-xs btn-primary" data-role="cmd" data-cmd="agentLoadConversations" style="margin-top:8px;">Retry</button></div>';
+      document.getElementById('agent-conv-list').innerHTML = '<div style="color:var(--danger);font-size:11px;text-align:center;padding:16px;">' + esc(t('agent.load-failed', 'Failed to load conversations')) + '<br><button class="btn btn-xs btn-primary" data-role="cmd" data-cmd="agentLoadConversations" style="margin-top:8px;">' + esc(t('agent.retry', 'Retry')) + '</button></div>';
     });
   };
 
@@ -90,11 +93,11 @@
     R.agent.conversations.create().then(function(c) {
       state.agentActiveConvId = c.id;
       state.agentMessages = [];
-      document.getElementById('agent-chat-title').textContent = c.title || 'New Chat';
-      document.getElementById('agent-chat-messages').innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">✨</div><div class="chat-empty-title">New conversation</div><div class="chat-empty-hint">Ask me anything!</div></div>';
+      document.getElementById('agent-chat-title').textContent = c.title || t('agent.chat-title', 'New Chat');
+      document.getElementById('agent-chat-messages').innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">✨</div><div class="chat-empty-title">' + esc(t('agent.empty-title', 'New conversation')) + '</div><div class="chat-empty-hint">' + esc(t('agent.empty-hint', 'Ask me anything!')) + '</div></div>';
       document.getElementById('agent-chat-status').textContent = '';
       cloak.agentLoadConversations();
-    }).catch(function(e) { toast('Failed to create conversation: ' + e.message, 'error'); });
+    }).catch(function(e) { toast(t('agent.create-failed', 'Failed to create conversation: ') + e.message, 'error'); });
   };
 
   cloak.agentSelectConv = function(convId) {
@@ -102,7 +105,7 @@
       if (!conv) return;
       state.agentActiveConvId = convId;
       state.agentMessages = conv.messages || [];
-      document.getElementById('agent-chat-title').textContent = conv.title || 'New Chat';
+      document.getElementById('agent-chat-title').textContent = conv.title || t('agent.chat-title', 'New Chat');
       cloak.agentRenderMessages();
       cloak.agentLoadConversations();
     }).catch(function(e) { console.error('Load conversation:', e); });
@@ -110,7 +113,7 @@
 
   cloak.agentDeleteConv = function() {
     if (!state.agentActiveConvId) return;
-    if (!confirm('Delete this conversation? All messages will be lost.')) return;
+    if (!confirm(t('agent.delete-confirm', 'Delete this conversation? All messages will be lost.'))) return;
     R.agent.conversations.delete(state.agentActiveConvId).then(function() {
       state.agentActiveConvId = null;
       state.agentMessages = [];
@@ -141,7 +144,7 @@
     input.value = '';
     input.disabled = true;
     var statusEl = document.getElementById('agent-chat-status');
-    statusEl.textContent = 'Thinking...';
+    statusEl.textContent = t('agent.thinking', 'Thinking...');
     var sendBtn = document.querySelector('#agent-view-chat .btn-primary');
     if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '...'; }
 
@@ -230,7 +233,7 @@
       // Stream-error payloads carry streamId; bare catch errors don't.
       if (err && err.streamId && !matchStream(err)) return;
       if (gotDone || cleaned) return;
-      var why = explainError(err) || 'Stream error';
+      var why = explainError(err) || t('agent.stream-error', 'Stream error');
       console.error('[agent] stream error:', err);
       state.agentMessages[assistantIdx].content = finalReply || ('❌ ' + why);
       cloak.agentRenderMessages();
