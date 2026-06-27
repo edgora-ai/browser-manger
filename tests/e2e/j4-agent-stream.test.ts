@@ -116,19 +116,64 @@ describe("J4 — Agent config + chat stream + persistence", () => {
     await shot(h.page, "j4-03-streamed");
   });
 
+  it("second send does not pollute the first assistant bubble (streamId correlation)", async () => {
+    // Send a second message; the first assistant bubble must stay intact.
+    await h.page.evaluate(() => {
+      const api = (window as any).cloak.api;
+      (window as any).__e2eChunks2 = [];
+      (window as any).__e2eDone2 = false;
+      (window as any).__e2eErr2 = null;
+      api.on("agent:stream-chunk", (payload: any) => {
+        if (payload && (window as any).__e2eChunks2) (window as any).__e2eChunks2.push(payload?.text);
+      });
+      api.on("agent:stream-done", () => { (window as any).__e2eDone2 = true; });
+      api.on("agent:stream-error", (e: any) => { (window as any).__e2eErr2 = String(e?.error ?? e); });
+    });
+
+    // Snapshot bubble count before the second send.
+    const beforeCount = await h.page.evaluate(() => document.querySelectorAll("#agent-chat-messages .chat-msg-agent").length);
+
+    await h.page.locator("#agent-chat-input").fill("second message");
+    await h.page.locator("#agent-chat-input").press("Enter");
+
+    const start = Date.now();
+    while (Date.now() - start < 15000) {
+      const done = await h.page.evaluate(() => (window as any).__e2eDone2);
+      const err = await h.page.evaluate(() => (window as any).__e2eErr2);
+      if (done || err) break;
+      await h.page.waitForTimeout(150);
+    }
+    const st = await h.page.evaluate(() => ({
+      done: (window as any).__e2eDone2,
+      err: (window as any).__e2eErr2,
+      chunks: (window as any).__e2eChunks2,
+    }));
+    expect(st.err, `second stream error: ${st.err}`).toBeNull();
+    expect(st.done).toBe(true);
+    expect(st.chunks.length).toBeGreaterThanOrEqual(3);
+
+    // The first message's text must still be present (not overwritten), and
+    // the agent bubble count must have grown by exactly one more reply.
+    const text = (await h.page.locator("#agent-chat-messages").innerText()).replace(/\s+/g, " ").trim();
+    expect(text).toContain(EXPECTED_FULL);
+    const afterCount = await h.page.evaluate(() => document.querySelectorAll("#agent-chat-messages .chat-msg-agent").length);
+    // At least the first reply + this reply; the previous test's reply is still there.
+    expect(afterCount).toBeGreaterThanOrEqual(beforeCount + 1);
+  });
+
   it("full assistant text is rendered in the chat view", async () => {
     await h.page.waitForTimeout(300);
     const text = (await h.page.locator("#agent-chat-messages").innerText()).replace(/\s+/g, " ").trim();
     expect(text).toContain(EXPECTED_FULL);
   });
 
-  it("the mock LLM received exactly one request containing 'hi'", () => {
-    expect(mock.requests.length).toBe(1);
-    const body = mock.requests[0].body;
-    expect(body).toBeTruthy();
-    const messages = body?.messages || body?.input?.messages || [];
-    const userTurn = messages.find((m: any) => m.role === "user");
-    expect(String(userTurn?.content || "")).toContain("hi");
+  it("the mock LLM received a request containing 'hi'", () => {
+    expect(mock.requests.length).toBeGreaterThanOrEqual(1);
+    const hiReq = mock.requests.find((r: any) => {
+      const messages = r?.body?.messages || r?.body?.input?.messages || [];
+      return messages.some((m: any) => m.role === "user" && String(m.content || "").includes("hi"));
+    });
+    expect(hiReq, "no mock request contained 'hi'").toBeTruthy();
   });
 
   it("conversation + full assistant reply persists after app restart", async () => {

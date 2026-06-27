@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { randomUUID } from "node:crypto";
 import {
   getAccounts, getRedactedAccounts, addAccount, updateAccount, deleteAccount, getProfileAccounts,
   llmChat, llmStreamChat, agentChat,
@@ -333,15 +334,20 @@ export function registerAgentHandlers(): void {
   ipcMain.handle("agent:chat-stream", async (event, params: {
     conversationId: string;
     message: string;
+    streamId?: string;
   }) => {
+    const streamId = params.streamId || randomUUID();
     const config = getLlmConfig() || getOrDetectLlmConfig();
     if (!config) {
-      event.sender.send("agent:stream-error", { error: "No LLM config" });
-      return { error: "No LLM config" };
+      event.sender.send("agent:stream-error", { error: "No LLM config", streamId });
+      return { error: "No LLM config", streamId };
     }
 
     const conv = getConversation(params.conversationId);
-    if (!conv) return { error: "Conversation not found" };
+    if (!conv) {
+      event.sender.send("agent:stream-error", { error: "Conversation not found", streamId });
+      return { error: "Conversation not found", streamId };
+    }
 
     addMessage(params.conversationId, "user", params.message);
 
@@ -371,16 +377,16 @@ export function registerAgentHandlers(): void {
     });
 
     const sendChunk = (text: string) => {
-      event.sender.send("agent:stream-chunk", { text });
+      event.sender.send("agent:stream-chunk", { text, streamId });
     };
     const sendToolCall = (tc: { id: string; name: string; arguments: string }) => {
-      event.sender.send("agent:stream-tool-call", { id: tc.id, name: tc.name, arguments: "{}", redacted: true });
+      event.sender.send("agent:stream-tool-call", { id: tc.id, name: tc.name, arguments: "{}", redacted: true, streamId });
     };
     const sendDone = () => {
-      event.sender.send("agent:stream-done", {});
+      event.sender.send("agent:stream-done", { streamId });
     };
     const sendError = (error: string) => {
-      event.sender.send("agent:stream-error", { error });
+      event.sender.send("agent:stream-error", { error, streamId });
     };
 
     const allowedTools = getAllowedAgentTools();

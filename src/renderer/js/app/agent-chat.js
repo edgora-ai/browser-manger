@@ -154,19 +154,46 @@
     state.agentMessages.push({ role: 'assistant', content: '', timestamp: Date.now() });
     cloak.agentRenderMessages();
 
+    // Correlate this request's stream events. Only payloads whose streamId
+    // matches are applied — this prevents stale listeners or concurrent sends
+    // from mutating the wrong assistant bubble.
+    var streamId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : ('stream_' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+    var matchStream = function(payload) { return payload && payload.streamId === streamId; };
+
     var lastToolCalls = [];
     var finalReply = '';
     var gotDone = false;
+    var cleaned = false;
+    var rafPending = false;
+    var lastRendered = '';
 
+    // Throttled incremental render: only re-render the active assistant bubble,
+    // and at most once per animation frame, so long Markdown responses don't
+    // thrash the whole message list on every token.
+    var scheduleRender = function() {
+      if (rafPending) return;
+      rafPending = true;
+      (window.requestAnimationFrame || function(fn) { setTimeout(fn, 16); })(function() {
+        rafPending = false;
+        cloak.agentRenderMessages();
+        var node = document.querySelector('#agent-chat-messages .chat-msg-agent:last-child .chat-bubble-agent');
+        if (node && state.agentMessages[assistantIdx]) {
+          node.innerHTML = renderChatMarkdown(state.agentMessages[assistantIdx].content);
+        }
+        var cont = document.getElementById('agent-chat-messages');
+        if (cont) cont.scrollTop = cont.scrollHeight;
+      });
+    };
     var onChunk = function(payload) {
-      // Main process sends { text }; also tolerate a bare string for safety.
+      if (!matchStream(payload)) return;
       var text = (payload && typeof payload === 'object') ? payload.text : payload;
       if (text == null) text = '';
       finalReply += String(text);
       state.agentMessages[assistantIdx].content = finalReply;
-      cloak.agentRenderMessages();
+      if (finalReply !== lastRendered) { lastRendered = finalReply; scheduleRender(); }
     };
     var onToolCall = function(tc) {
+      if (!matchStream(tc)) return;
       lastToolCalls.push(tc);
       // Maintain both the redacted toolCalls (persisted) and a live steps log
       // (rendered with order + arg summary + a "running" indicator).
@@ -179,7 +206,8 @@
       state.agentMessages[assistantIdx].steps = steps;
       cloak.agentRenderMessages();
     };
-    var onDone = function() {
+    var onDone = function(payload) {
+      if (!matchStream(payload)) return;
       gotDone = true;
       // Mark every step as finished so spinners become checkmarks.
       var steps = state.agentMessages[assistantIdx] && state.agentMessages[assistantIdx].steps;
@@ -199,19 +227,28 @@
       try { return JSON.stringify(err); } catch (e) { return String(err); }
     };
     var onError = function(err) {
-      if (!gotDone) {
-        var why = explainError(err) || 'Stream error';
-        console.error('[agent] stream error:', err);
-        state.agentMessages[assistantIdx].content = finalReply || ('❌ ' + why);
-        cloak.agentRenderMessages();
-      }
+      // Stream-error payloads carry streamId; bare catch errors don't.
+      if (err && err.streamId && !matchStream(err)) return;
+      if (gotDone || cleaned) return;
+      var why = explainError(err) || 'Stream error';
+      console.error('[agent] stream error:', err);
+      state.agentMessages[assistantIdx].content = finalReply || ('❌ ' + why);
+      cloak.agentRenderMessages();
       cleanup();
     };
     var cleanup = function() {
+      if (cleaned) return;
+      cleaned = true;
       statusEl.textContent = '';
       if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '↑'; }
       input.disabled = false;
       input.focus();
+      // Always remove this request's listeners — done, error, and the promise
+      // result all funnel here, so no listeners leak across sends.
+      api.removeListener('agent:stream-chunk', onChunk);
+      api.removeListener('agent:stream-tool-call', onToolCall);
+      api.removeListener('agent:stream-done', onDone);
+      api.removeListener('agent:stream-error', onError);
       cloak.agentRenderMessages({ scrollOnly: true });
       cloak.agentLoadConversations();
     };
@@ -222,17 +259,15 @@
     api.on('agent:stream-done', onDone);
     api.on('agent:stream-error', onError);
 
-    R.agent.chatStream(state.agentActiveConvId, msg).then(function(r) {
-      // Main response handler — fires after stream completes
+    R.agent.chatStream(state.agentActiveConvId, msg, streamId).then(function(r) {
+      // The main process resolves after the stream completes. If it returned an
+      // error without ever sending a stream-error event, surface it here.
+      if (r && r.error && !gotDone) { onError(r); return; }
+      // Ensure cleanup even on a clean resolve that did not emit stream-done.
+      if (!gotDone) cleanup();
     }).catch(function(e) {
-      if (!gotDone) {
-        onError(e.message || String(e));
-      }
-      // Unsubscribe
-      api.removeListener('agent:stream-chunk', onChunk);
-      api.removeListener('agent:stream-tool-call', onToolCall);
-      api.removeListener('agent:stream-done', onDone);
-      api.removeListener('agent:stream-error', onError);
+      if (!gotDone) onError(e.message || String(e));
+      else cleanup();
     });
   };
 

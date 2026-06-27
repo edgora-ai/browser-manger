@@ -108,7 +108,9 @@ describe("J21 — parallel tool calls in one assistant turn", () => {
     });
     expect(run.status).toBe("done");
     expect(run.steps.map((s: any) => s.tool)).toEqual(["db_exec", "db_exec", "set_var"]);
-    expect(run.variables.who).toBe("parallel");
+    // Variable values are redacted in public run views; the key presence proves set_var ran.
+    expect(Object.keys(run.variables || {})).toContain("who");
+    expect(run.variables.who).toBe("[REDACTED:8B]");
   });
 
   it("no unexpected console errors", () => {

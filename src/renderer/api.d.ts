@@ -210,7 +210,7 @@ export interface CloakLiteAPI {
     detectLlmConfig: () => Promise<RedactedLlmConfig | null>;
     saveLlmConfig: (config: { provider: "openai" | "claude" | "custom"; apiKey?: string; apiUrl?: string; model?: string }) => Promise<{ success: boolean; error?: string }>;
     chat: (conversationId: string, message: string) => Promise<any>;
-    chatStream: (conversationId: string, message: string) => Promise<any>;
+    chatStream: (conversationId: string, message: string, streamId?: string) => Promise<any>;
     chatSimple: (messages: Array<{ role: string; content: string }>) => Promise<any>;
     listSkills: () => Promise<SkillRepositoryEntry[]>;
     taskTemplates: () => Promise<Array<{ id: string; title: string; category: string; description: string; riskLevel: string; requiredInputs: any[]; tools: string[]; successCriteria: string[]; examplePrompt: string; prompt: string; steps: string[]; outputTable?: { name: string; columns: string[] } }>>;
