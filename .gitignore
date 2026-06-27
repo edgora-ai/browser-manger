@@ -1,0 +1,33 @@
+node_modules/
+dist/
+release/
+*.log
+.DS_Store
+__handlers__/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime databases and local app state
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
+audit.log.jsonl
+agent-store.sqlite
+jobs.sqlite
+Local Storage/
+Session Storage/
+Cookies
+Network Persistent State
+
+tests/e2e/userdata/
+tests/e2e/screenshots/
+tests/e2e/fixtures/
+
+# Claude plans (local)
+.claude/

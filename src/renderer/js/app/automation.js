@@ -1,0 +1,401 @@
+// 自动化任务 tab 逻辑(正经 dialog 编辑)
+(function() {
+  "use strict";
+  var cloak = window.cloak;
+  var api = cloak.api;
+  var helpers = cloak.helpers;
+  var toast = helpers.toast;
+  var esc = helpers.esc;
+  var escAttr = helpers.escAttr;
+
+  var currentRules = [];
+  var taskTemplates = [];
+
+  function describeTrigger(t) {
+    if (!t) return '?';
+    if (t.type === 'cron') {
+      var hint = cronHint(t.cron);
+      return '定时 <code style="font-family:var(--mono)">' + esc(t.cron || '') + '</code>' + (hint ? ' <span style="color:var(--text-muted)">(' + esc(hint) + ')</span>' : '');
+    }
+    if (t.type === 'once') return '单次 ' + (t.at ? new Date(t.at).toLocaleString() : '?');
+    if (t.type === 'event') return '事件 ' + esc(t.event || '').replace('profile:','') + (t.profileFilter ? ' (' + esc(t.profileFilter).slice(0,8) + ')' : ' (所有)');
+    return '?';
+  }
+  function describeAction(a) {
+    if (!a) return '?';
+    var map = { 'launch-profile':'🚀 启动', 'stop-profile':'⏹ 停止', 'agent-task':'🤖 Agent', 'sync-push':'☁️ Push', 'sync-pull':'☁️ Pull', 'custom-js':'⚙️ JS' };
+    var base = map[a.type] || a.type;
+    if (a.profileDirId) base += ' ' + esc(a.profileDirId).slice(0,10);
+    if (a.type === 'agent-task' && a.agentPrompt) base += ' <em style="color:var(--text-muted)">"' + esc(a.agentPrompt).slice(0,30) + '..."</em>';
+    return base;
+  }
+  function cronHint(c) {
+    if (!c) return '';
+    var p = c.trim().split(/\s+/);
+    if (p.length !== 5) return '';
+    if (p[0]==='0' && p[1] && p[2]==='*' && p[3]==='*' && p[4]==='*') return '每天 '+p[1]+':00';
+    if (/^\*\//.test(p[0]) && p[1]==='*' && p[2]==='*' && p[3]==='*' && p[4]==='*') return '每 '+p[0].slice(2)+' 分钟';
+    if (p[1]==='*' && p[2]==='*' && p[3]==='*' && p[4]==='*') return '每小时 '+p[0]+' 分';
+    return '';
+  }
+
+  var JOB_STATUS_LABEL = { queued: '排队', running: '运行中', done: '完成', failed: '失败', skipped: '跳过', cancelled: '已取消' };
+  var JOB_STATUS_CLS = { queued: 'status-stopped', running: 'status-running', done: 'status-done', failed: 'status-stopped', skipped: 'status-stopped', cancelled: 'status-stopped' };
+
+  function jobStatusBadge(job) {
+    var cls = JOB_STATUS_CLS[job.status] || 'status-stopped';
+    return '<span class="status-badge ' + cls + '">' + esc(JOB_STATUS_LABEL[job.status] || job.status || '?') + '</span>';
+  }
+
+  function fmtJobTime(value) {
+    return value ? new Date(value).toLocaleString() : '-';
+  }
+
+  function jobDuration(job) {
+    if (!job || !job.startedAt) return '-';
+    var end = job.finishedAt || Date.now();
+    var ms = Math.max(0, end - job.startedAt);
+    if (ms < 1000) return ms + 'ms';
+    if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+    return Math.round(ms / 60000) + 'm';
+  }
+
+  function jobSummary(job) {
+    var text = job.error || job.result || '';
+    return text ? String(text).slice(0, 140) : '(无结果)';
+  }
+
+  function canCancelJob(job) {
+    return job && (job.status === 'queued' || job.status === 'running');
+  }
+
+  function jobDetailText(job) {
+    return JSON.stringify({
+      id: job.id,
+      ruleId: job.ruleId,
+      ruleName: job.ruleName,
+      source: job.source,
+      status: job.status,
+      attempt: job.attempt,
+      runId: job.runId,
+      createdAt: fmtJobTime(job.createdAt),
+      startedAt: fmtJobTime(job.startedAt),
+      finishedAt: fmtJobTime(job.finishedAt),
+      result: job.result,
+      error: job.error,
+    }, null, 2);
+  }
+
+  function fillProfileSelect(selId, selected) {
+    api.cloak.list().then(function(list) {
+      var sel = document.getElementById(selId);
+      var cur = sel.value;
+      sel.innerHTML = '<option value="">(选择 profile)</option>' + (list || []).map(function(p) {
+        return '<option value="' + escAttr(p.dirId) + '"' + (p.dirId === selected ? ' selected' : '') + '>' + esc(p.name) + '</option>';
+      }).join('');
+      if (selected && !sel.value) sel.value = selected;
+    });
+  }
+
+  function updateTriggerVisibility() {
+    var type = document.getElementById('auto-trigger-type').value;
+    document.getElementById('auto-cron-row').style.display = type === 'cron' ? '' : 'none';
+    document.getElementById('auto-once-row').style.display = type === 'once' ? '' : 'none';
+    document.getElementById('auto-event-row').style.display = type === 'event' ? '' : 'none';
+    document.getElementById('auto-event-filter-row').style.display = type === 'event' ? '' : 'none';
+  }
+  function updateActionVisibility() {
+    var type = document.getElementById('auto-action-type').value;
+    document.getElementById('auto-action-profile-row').style.display = (type === 'launch-profile' || type === 'stop-profile' || type === 'agent-task') ? '' : 'none';
+    document.getElementById('auto-action-template-row').style.display = type === 'agent-task' ? '' : 'none';
+    document.getElementById('auto-action-prompt-row').style.display = type === 'agent-task' ? '' : 'none';
+    document.getElementById('auto-action-js-row').style.display = type === 'custom-js' ? '' : 'none';
+  }
+
+  function fillTemplateSelect() {
+    var sel = document.getElementById('auto-action-template');
+    if (!sel) return;
+    var selected = sel.value;
+    sel.innerHTML = '<option value="">(不使用模板)</option>' + taskTemplates.map(function(t) {
+      return '<option value="' + escAttr(t.id) + '">' + esc(t.title) + ' · ' + esc(t.category) + ' · ' + esc(t.riskLevel) + '</option>';
+    }).join('');
+    if (selected) sel.value = selected;
+  }
+
+  function templatePrompt(tpl) {
+    if (!tpl) return '';
+    var lines = [
+      '使用模板 ' + tpl.id + ' — ' + tpl.title,
+      '',
+      tpl.prompt || tpl.examplePrompt || tpl.description || '',
+    ];
+    if (tpl.requiredInputs && tpl.requiredInputs.length) {
+      lines.push('', '必填输入:');
+      (tpl.requiredInputs || []).forEach(function(input) {
+        lines.push('- ' + input.key + (input.required ? ' (required)' : ' (optional)') + ': ' + (input.description || '') + (input.example ? ' 示例: ' + input.example : ''));
+      });
+    }
+    if (tpl.steps && tpl.steps.length) {
+      lines.push('', '执行步骤:');
+      (tpl.steps || []).forEach(function(step, index) { lines.push((index + 1) + '. ' + step); });
+    }
+    if (tpl.successCriteria && tpl.successCriteria.length) {
+      lines.push('', '成功标准:');
+      (tpl.successCriteria || []).forEach(function(item) { lines.push('- ' + item); });
+    }
+    return lines.join('\n');
+  }
+
+  function applyTemplateSelection() {
+    var id = document.getElementById('auto-action-template').value;
+    var tpl = taskTemplates.find(function(t) { return t.id === id; });
+    var hint = document.getElementById('auto-template-hint');
+    if (!tpl) { hint.textContent = ''; return; }
+    hint.textContent = 'risk=' + tpl.riskLevel + ' · tools=' + (tpl.tools || []).join(', ') + ' · success=' + (tpl.successCriteria || []).slice(0, 2).join('; ');
+    document.getElementById('auto-action-prompt').value = templatePrompt(tpl);
+  }
+
+  cloak.loadAutomationTab = function() {
+    api.automation.list().then(function(rules) {
+      currentRules = rules || [];
+      var el = document.getElementById('automation-list');
+      if (!rules || rules.length === 0) {
+        el.innerHTML = '<div class="empty-state">还没有自动化任务。<br>点「+ 新建任务」创建,或让 Agent 帮你建(在 Agent 里说"每天9点启动demo")。</div>';
+      } else {
+        el.innerHTML = rules.map(function(r) {
+          return '<div class="profile-card" data-rule-id="' + escAttr(r.id) + '">' +
+            '<div class="card-header"><span class="name">' + esc(r.name) + '</span>' +
+              '<span class="status-badge ' + (r.enabled ? 'status-running' : 'status-stopped') + '">' + (r.enabled ? '启用' : '停用') + '</span></div>' +
+            '<div class="info-row"><span>触发</span><span style="font-size:12px;">' + describeTrigger(r.trigger) + '</span></div>' +
+            '<div class="info-row"><span>动作</span><span style="font-size:12px;">' + describeAction(r.action) + '</span></div>' +
+            (r.lastRunAt ? '<div class="info-row"><span>上次</span><span style="font-size:11px;color:' + (r.lastResult && !r.lastResult.includes('error') && !r.lastResult.includes('failed') ? 'var(--success)' : 'var(--text-muted)') + ';">' + new Date(r.lastRunAt).toLocaleString() + '</span></div>' : '') +
+            '<div class="card-actions">' +
+              '<button class="btn btn-secondary btn-sm" data-rule-action="toggle">' + (r.enabled ? '停用' : '启用') + '</button>' +
+              '<button class="btn btn-secondary btn-sm" data-rule-action="test">测试运行</button>' +
+              '<button class="btn btn-secondary btn-sm" data-rule-action="edit">编辑</button>' +
+              '<button class="btn btn-danger btn-sm" data-rule-action="delete">删除</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+        el.onclick = function(event) {
+          var target = event.target.closest('[data-rule-action]');
+          if (!target || !el.contains(target)) return;
+          var card = target.closest('[data-rule-id]');
+          var ruleId = card && card.dataset.ruleId;
+          var action = target.dataset.ruleAction;
+          var rule = currentRules.find(function(x){return x.id===ruleId;});
+          if (action === 'toggle') cloak.automationToggle(rule);
+          else if (action === 'test') cloak.automationTest(ruleId);
+          else if (action === 'edit') cloak.automationEdit(rule);
+          else if (action === 'delete') cloak.automationDelete(ruleId);
+        };
+      }
+    });
+    cloak.automationRefreshLogs();
+    cloak.automationRefreshJobs();
+  };
+
+  cloak.automationRefreshJobs = function() {
+    var el = document.getElementById('automation-jobs');
+    if (!el) return;
+    var statusEl = document.getElementById('automation-job-status');
+    var status = statusEl && statusEl.value;
+    el.innerHTML = '<div class="loading">Loading...</div>';
+    api.automation.jobs({ status: status || undefined, limit: 50 }).then(function(jobs) {
+      if (!jobs || jobs.length === 0) {
+        el.innerHTML = '<div class="empty-state">还没有 durable jobs。<br>点击「测试运行」后会在这里看到执行记录。</div>';
+        return;
+      }
+      el.innerHTML = jobs.map(function(job) {
+        var summary = jobSummary(job);
+        var runLink = job.runId
+          ? '<button class="btn btn-secondary btn-sm" data-job-action="open-run">打开 Run</button>'
+          : '';
+        var cancel = canCancelJob(job)
+          ? '<button class="btn btn-danger btn-sm" data-job-action="cancel">取消</button>'
+          : '';
+        return '<div class="profile-card" data-job-id="' + escAttr(job.id) + '">' +
+          '<div class="card-header"><span class="name">' + esc(job.ruleName || job.ruleId || job.id) + '</span>' + jobStatusBadge(job) + '</div>' +
+          '<div class="info-row"><span>Job</span><span style="font-family:var(--mono);font-size:11px;">' + esc(job.id) + '</span></div>' +
+          '<div class="info-row"><span>来源</span><span>' + esc(job.source || '-') + ' · attempt ' + esc(job.attempt) + '</span></div>' +
+          '<div class="info-row"><span>创建</span><span>' + esc(fmtJobTime(job.createdAt)) + '</span></div>' +
+          '<div class="info-row"><span>耗时</span><span>' + esc(jobDuration(job)) + '</span></div>' +
+          (job.runId ? '<div class="info-row"><span>Run</span><span style="font-family:var(--mono);font-size:11px;">' + esc(job.runId) + '</span></div>' : '') +
+          '<div style="font-size:11px;color:' + (job.error ? 'var(--danger)' : 'var(--text-muted)') + ';margin:6px 0;line-height:1.35;">' + esc(summary) + '</div>' +
+          '<div class="card-actions">' +
+            '<button class="btn btn-secondary btn-sm" data-job-action="detail">详情</button>' +
+            runLink + cancel +
+          '</div>' +
+        '</div>';
+      }).join('');
+      el.onclick = function(event) {
+        var btn = event.target.closest('[data-job-action]');
+        if (!btn || !el.contains(btn)) return;
+        var card = btn.closest('[data-job-id]');
+        var jobId = card && card.dataset.jobId;
+        var job = (jobs || []).find(function(x) { return x.id === jobId; });
+        if (btn.dataset.jobAction === 'detail') cloak.automationShowJob(jobId);
+        else if (btn.dataset.jobAction === 'open-run' && job && job.runId) cloak.runsOpen(job.runId);
+        else if (btn.dataset.jobAction === 'cancel') cloak.automationCancelJob(jobId);
+      };
+    }).catch(function(e) {
+      el.innerHTML = '<div class="empty-state">加载 jobs 失败: ' + esc(e.message || e) + '</div>';
+      toast('加载 jobs 失败: ' + (e.message || e), 'error');
+    });
+  };
+
+  cloak.automationShowJob = function(jobId) {
+    if (!jobId) return;
+    api.automation.jobGet(jobId).then(function(job) {
+      if (!job) { toast('Job 不存在', 'error'); return; }
+      document.getElementById('auto-job-title').textContent = job.id;
+      document.getElementById('auto-job-detail').textContent = jobDetailText(job);
+      var actions = document.getElementById('auto-job-actions');
+      actions.innerHTML = (job.runId ? '<button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="runsOpen" data-cmd-arg="' + escAttr(job.runId) + '">打开关联 Run</button>' : '') +
+        (canCancelJob(job) ? '<button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="automationCancelJob" data-cmd-arg="' + escAttr(job.id) + '">取消 Job</button>' : '');
+      document.getElementById('dlg-auto-job').showModal();
+    }).catch(function(e) { toast('加载 job 失败: ' + (e.message || e), 'error'); });
+  };
+
+  cloak.automationCancelJob = function(jobId) {
+    if (!jobId) return;
+    if (!confirm('取消此 job? 已经开始的外部副作用不会回滚。')) return;
+    api.automation.jobCancel(jobId).then(function(r) {
+      toast(r && r.success ? '已取消 job' : '取消失败', r && r.success ? 'success' : 'error');
+      var dlg = document.getElementById('dlg-auto-job');
+      if (dlg && dlg.open) dlg.close();
+      cloak.automationRefreshJobs();
+    }).catch(function(e) { toast('取消 job 失败: ' + (e.message || e), 'error'); });
+  };
+
+  cloak.automationRefreshLogs = function() {
+    api.automation.logs().then(function(logs) {
+      var logEl = document.getElementById('automation-log');
+      if (!logs || logs.length === 0) { logEl.textContent = '(空)'; return; }
+      logEl.innerHTML = logs.slice(0, 50).map(function(l, i) {
+        return '<div data-log-idx="' + i + '" style="padding:2px 0;cursor:pointer;border-bottom:1px solid var(--border-light);">' +
+          '<span style="color:var(--text-muted);">' + new Date(l.at).toLocaleString() + '</span> ' +
+          (l.ok ? '✅' : '❌') + ' <strong>' + esc(l.ruleName) + '</strong>: ' + esc(l.result).slice(0, 80) +
+        '</div>';
+      }).join('');
+      logEl.onclick = function(event) {
+        var row = event.target.closest('[data-log-idx]');
+        if (!row) return;
+        cloak.automationShowLogDetail(logs[Number(row.dataset.logIdx)]);
+      };
+    });
+  };
+
+  cloak.automationShowLogDetail = function(log) {
+    if (!log) return;
+    var detail = '任务: ' + log.ruleName + ' (' + log.ruleId + ')\n' +
+      '时间: ' + new Date(log.at).toLocaleString() + '\n' +
+      '结果: ' + (log.ok ? '✅ 成功' : '❌ 失败') + '\n' +
+      '详情:\n' + log.result;
+    document.getElementById('auto-log-detail').textContent = detail;
+    document.getElementById('dlg-auto-log').showModal();
+  };
+
+  function openEditor(rule) {
+    document.getElementById('auto-dlg-title').textContent = rule ? '编辑任务' : '新建任务';
+    document.getElementById('auto-id').value = rule ? rule.id : '';
+    document.getElementById('auto-name').value = rule ? rule.name : '';
+    var tt = rule ? rule.trigger.type : 'cron';
+    document.getElementById('auto-trigger-type').value = tt;
+    if (rule && rule.trigger.cron) document.getElementById('auto-cron').value = rule.trigger.cron;
+    else document.getElementById('auto-cron').value = '0 9 * * *';
+    if (rule && rule.trigger.at) {
+      var d = new Date(rule.trigger.at);
+      var pad = function(n){return n<10?'0'+n:n;};
+      document.getElementById('auto-once').value = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+    } else { document.getElementById('auto-once').value = ''; }
+    if (rule && rule.trigger.event) document.getElementById('auto-event').value = rule.trigger.event;
+    fillProfileSelect('auto-event-profile', rule && rule.trigger.profileFilter);
+    var at = rule ? rule.action.type : 'launch-profile';
+    document.getElementById('auto-action-type').value = at;
+    fillProfileSelect('auto-action-profile', rule && rule.action.profileDirId);
+    fillTemplateSelect();
+    document.getElementById('auto-action-template').value = (rule && rule.action.templateId) || '';
+    document.getElementById('auto-template-hint').textContent = '';
+    document.getElementById('auto-action-prompt').value = '';
+    if (rule && rule.action.templateId) applyTemplateSelection();
+    if (rule && rule.action.agentPrompt) document.getElementById('auto-action-prompt').value = rule.action.agentPrompt;
+    document.getElementById('auto-action-js').value = (rule && rule.action.jsCode) || '';
+    document.getElementById('auto-enabled').checked = rule ? rule.enabled : true;
+    updateTriggerVisibility();
+    updateActionVisibility();
+    document.getElementById('auto-trigger-type').onchange = updateTriggerVisibility;
+    document.getElementById('auto-action-type').onchange = updateActionVisibility;
+    document.getElementById('auto-action-template').onchange = applyTemplateSelection;
+    document.getElementById('auto-cron').oninput = function() {
+      var c = this.value;
+      var hintEl = document.getElementById('auto-cron-hint');
+      if (!c) { hintEl.textContent = ''; return; }
+      api.automation.validateCron(c).then(function(v) {
+        hintEl.textContent = v.valid ? (cronHint(c) || '✓ 有效') : ('✗ ' + v.error);
+        hintEl.style.color = v.valid ? 'var(--success)' : 'var(--danger)';
+      });
+    };
+    document.getElementById('dlg-automation').showModal();
+  }
+
+  cloak.automationNew = function() {
+    var open = function() { openEditor(null); };
+    if (taskTemplates.length || !api.agent.taskTemplates) { open(); return; }
+    api.agent.taskTemplates().then(function(list) { taskTemplates = list || []; open(); }).catch(open);
+  };
+  cloak.automationEdit = function(rule) {
+    var open = function() { openEditor(rule); };
+    if (taskTemplates.length || !api.agent.taskTemplates) { open(); return; }
+    api.agent.taskTemplates().then(function(list) { taskTemplates = list || []; open(); }).catch(open);
+  };
+
+  cloak.saveAutomation = function() {
+    var id = document.getElementById('auto-id').value;
+    var name = document.getElementById('auto-name').value.trim() || 'Untitled';
+    var triggerType = document.getElementById('auto-trigger-type').value;
+    var trigger = { type: triggerType };
+    if (triggerType === 'cron') trigger.cron = document.getElementById('auto-cron').value.trim();
+    else if (triggerType === 'once') {
+      var at = new Date(document.getElementById('auto-once').value).getTime();
+      if (isNaN(at)) { toast('执行时间无效', 'error'); return; }
+      trigger.at = at;
+    } else if (triggerType === 'event') {
+      trigger.event = document.getElementById('auto-event').value;
+      var pf = document.getElementById('auto-event-profile').value;
+      if (pf) trigger.profileFilter = pf;
+    }
+    var actionType = document.getElementById('auto-action-type').value;
+    var action = { type: actionType };
+    if (['launch-profile','stop-profile','agent-task'].includes(actionType)) {
+      action.profileDirId = document.getElementById('auto-action-profile').value;
+      if (!action.profileDirId) { toast('请选择 profile', 'error'); return; }
+    }
+    if (actionType === 'agent-task') {
+      action.templateId = document.getElementById('auto-action-template').value || undefined;
+      action.agentPrompt = document.getElementById('auto-action-prompt').value.trim();
+    }
+    if (actionType === 'custom-js') action.jsCode = document.getElementById('auto-action-js').value;
+    var enabled = document.getElementById('auto-enabled').checked;
+    var payload = { name: name, enabled: enabled, trigger: trigger, action: action };
+    document.getElementById('dlg-automation').close();
+    var p = id ? api.automation.update(Object.assign({ id: id }, payload)) : api.automation.create(payload);
+    p.then(function(r) {
+      toast(r.success ? (id ? '已更新' : '已创建') : ('失败: ' + (r.error || '')), r.success ? 'success' : 'error');
+      cloak.loadAutomationTab();
+    });
+  };
+
+  cloak.automationToggle = function(rule) {
+    if (!rule) return;
+    api.automation.update({ id: rule.id, enabled: !rule.enabled, name: rule.name, trigger: rule.trigger, action: rule.action }).then(function() { cloak.loadAutomationTab(); });
+  };
+  cloak.automationTest = function(ruleId) {
+    toast('测试运行中...', 'info');
+    api.automation.testRun(ruleId).then(function(r) { toast((r.ok?'✅ ':'❌ ') + r.result.slice(0,60), r.ok?'success':'error'); setTimeout(function(){ cloak.loadAutomationTab(); }, 500); });
+  };
+  cloak.automationDelete = function(ruleId) {
+    if (!confirm('删除此任务?')) return;
+    api.automation.delete(ruleId).then(function() { toast('已删除', 'success'); cloak.loadAutomationTab(); });
+  };
+})();

@@ -1,0 +1,190 @@
+# CloakLite
+
+> 面向 CloakBrowser 的本地优先浏览器 Profile 管理与 AI 自动化控制台。
+
+CloakLite 是一个自托管 Electron 桌面应用，用于在授权场景下管理 CloakBrowser profiles、代理、浏览器状态、AI 辅助工作流、durable automation jobs、审计轨迹和 S3 兼容同步。
+
+**语言:** [English](README.md) | [简体中文](README.zh-CN.md)  
+**使用手册:** [English](docs/USER_GUIDE.en.md) | [简体中文](docs/USER_GUIDE.zh-CN.md)
+
+---
+
+## 重要声明
+
+CloakLite 是具有双用途属性的本地自动化工具。请仅用于合法且已授权的工作流，例如 QA、国际化/本地化测试、隐私保护型个人工作流、授权业务运营和防御性研究。
+
+禁止将 CloakLite 用于欺诈、垃圾信息、凭证攻击、未授权抓取、平台滥用、封禁规避、虚假身份网络，或滥用 Cookie、凭证、个人数据、商业机密等敏感信息。详见 [ACCEPTABLE_USE.md](ACCEPTABLE_USE.md)。
+
+---
+
+## 功能概览
+
+| 模块 | 能力 |
+|---|---|
+| CloakBrowser Profiles | 安装/配置 CloakBrowser，创建/启动/停止 profiles，确定性指纹 seeds，profile tags |
+| 指纹设置 | 平台、时区、语言、WebRTC、GPU、屏幕、CPU、内存、存储额度、字体 |
+| 代理管理 | 命名 HTTP/SOCKS 代理，凭证脱敏，按 profile 分配，代理地理检测 |
+| 浏览器状态 | Cookies、localStorage、preferences、bookmarks、extension state、存储检查 |
+| 扩展仓库 | 本地 ZIP/CRX 导入，Chrome Web Store 包缓存，安全解包，同步 hash 校验 |
+| AI Agent | OpenAI-compatible 和 Claude provider，工具调用，浏览器控制，文件/HTTP/DB 工具，run traces |
+| Skills 和模板 | 内置 skills，可导入/导出 recipes，任务模板，平台 adapters |
+| 自动化 | 定时/手动 rules，durable jobs，job/run 关联，automation job UI |
+| 同步 | S3 兼容配置和 profile artifact 同步，preview，有界读取，恢复加固 |
+| 审计/导出 | Activity timeline，run traces，脱敏导出包，跨对象链接 |
+| 安全加固 | Renderer sandbox、context isolation、CSP、审批门、SSRF 阻断、脱敏边界 |
+
+---
+
+## 快速开始
+
+### 环境要求
+
+- Apple Silicon macOS
+- Node.js 22.16 或更高版本
+- npm
+
+### 安装与启动
+
+```bash
+git clone https://github.com/edgora-ai/browser-manger.git
+cd browser-manger
+npm install
+npm start
+```
+
+### 开发检查
+
+```bash
+npm run build
+npm test
+```
+
+定向 E2E 示例：
+
+```bash
+npm run build
+npx vitest run -c vitest.config.e2e.ts tests/e2e/j34-credential-vault.test.ts
+```
+
+> E2E 会在 `tests/e2e/userdata/` 生成本地浏览器数据；该目录已被忽略，不能提交。
+
+---
+
+## 首次使用流程
+
+1. 打开 **CloakBrowser**，安装或配置 CloakBrowser 二进制文件。
+2. 打开 **Profiles** 并创建 profile。
+3. 可选：打开 **Proxies**，添加代理并分配给 profile。
+4. 启动 profile，运行 **Check Risk** / consistency check。
+5. 可选：打开 **Agent**，配置 LLM provider，并执行已授权的浏览器自动化任务。
+6. 可选：打开 **Automation** 创建定时或手动规则。
+7. 可选：在阅读隐私和安全说明后配置 **Sync**。
+
+完整说明请阅读 [English User Guide](docs/USER_GUIDE.en.md) 或 [中文使用手册](docs/USER_GUIDE.zh-CN.md)。
+
+---
+
+## 项目结构
+
+```text
+src/
+  main/
+    index.ts              Electron 入口、窗口、托盘、MCP bootstrap
+    preload.cjs           contextBridge API
+    ipc/                  IPC handler modules
+    services/             业务逻辑和持久化
+    types.ts              共享类型
+  renderer/
+    index.html            UI shell
+    css/                  renderer 样式
+    js/                   模块化 renderer 应用
+tests/
+  unit/                   service 和 hardening tests
+  e2e/                    Playwright Electron journeys
+  smoke/                  结构检查
+docs/                     使用手册和 roadmap
+patches/                  保留目录（本仓库不包含 Chromium 补丁）
+resources/                应用图标
+```
+
+---
+
+## 安全、隐私和合规
+
+CloakLite 会处理敏感本地数据，包括浏览器 profile 状态、Cookies、localStorage、代理凭证、LLM API keys、同步凭证、审计日志、截图和 agent traces。
+
+安全控制包括：
+
+- Electron renderer sandbox、context isolation、renderer 无 Node integration
+- CSP，仅允许 self-hosted scripts
+- 本地 config 权限和原子写入
+- IPC、UI、export、sync-safe config、run trace views 中的 secret redaction
+- HTTP 写方法和危险 DB 操作审批门
+- Agent HTTP requests 阻断本地/私网/link-local/CGNAT 目标
+- HTTP/LLM 响应有界处理
+- 安全 ZIP/CRX 解包和扩展包 hash 校验
+- loopback-only MCP server，并使用 bearer token 认证
+
+使用前请阅读：
+
+- [SECURITY.md](SECURITY.md)
+- [PRIVACY.md](PRIVACY.md)
+- [ACCEPTABLE_USE.md](ACCEPTABLE_USE.md)
+- [NOTICE.md](NOTICE.md)
+
+---
+
+## 测试和发布检查清单
+
+发布或分享构建前：
+
+```bash
+npm run build
+npm test
+npm audit --json
+```
+
+推荐仓库卫生检查：
+
+```bash
+rg -n --hidden --glob '!node_modules/**' --glob '!dist/**' --glob '!.git/**' 'sk-|AKIA|BEGIN .*PRIVATE KEY|github_pat_|ghp_' . || true
+git status --short --ignored
+```
+
+不要提交：
+
+- `.env` 或本地 config 文件
+- sqlite/db 文件
+- Cookies、Local Storage、Session Storage
+- audit logs、screenshots、exported bundles
+- `dist/`、`node_modules/`、E2E userdata
+
+---
+
+## 文档
+
+- [User Guide — English](docs/USER_GUIDE.en.md)
+- [使用手册 — 简体中文](docs/USER_GUIDE.zh-CN.md)
+- [Improvement Roadmap](docs/improvement-roadmap.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security Policy](SECURITY.md)
+- [Privacy Notice](PRIVACY.md)
+- [Acceptable Use Policy](ACCEPTABLE_USE.md)
+
+---
+
+## 贡献
+
+欢迎贡献。请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)，安全敏感或持久化相关改动需要包含测试。
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE)。
+
+---
+
+## 商标和非隶属声明
+
+除非相关方明确声明，CloakLite 与 Google、Chrome、Chromium、Meta、Facebook、Instagram、TikTok、Amazon、Shopee、OpenAI、Anthropic、AWS、S3 兼容存储提供商或 CloakBrowser 没有关联、背书、赞助或官方连接。

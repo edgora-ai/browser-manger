@@ -1,0 +1,302 @@
+// ── Shared types for CloakLite management console ──
+
+export interface ProxyConfig {
+  type: "http" | "socks5" | "socks5h";
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+  bypassList?: string[];
+}
+
+export interface ProxyDetectionCacheEntry {
+  detectedAt: number;
+  success: boolean;
+  exitIp: string | null;
+  country: string | null;
+  countryCode: string | null;
+  timezone: string | null;
+  provider: string | null;
+  latencyMs: number | null;
+  error: string | null;
+}
+
+export type ProxyMode = "none" | "default" | "named";
+
+export interface ResolvedProfileProxy {
+  mode: ProxyMode;
+  name: string | null;
+  config: ProxyConfig | null;
+}
+
+export type CloakPlatform = "windows" | "macos";
+
+export interface CloakFingerprintMeta {
+  fingerprintSeed?: number;
+  platform?: CloakPlatform;
+  timezone?: string | null;
+  locale?: string | null;
+  webrtcIp?: string | null;
+  gpuVendor?: string | null;
+  gpuRenderer?: string | null;
+  hardwareConcurrency?: number | null;
+  deviceMemory?: number | null;
+  screenWidth?: number | null;
+  screenHeight?: number | null;
+  storageQuota?: number | null;
+  taskbarHeight?: number | null;
+  fontsDir?: string | null;
+  /** Captured live-fingerprint baseline for drift detection. */
+  fingerprintBaseline?: Record<string, unknown>;
+}
+
+export interface CloakProfileMeta extends CloakFingerprintMeta {
+  name: string;
+  proxyMode?: ProxyMode;
+  proxyName?: string | null;
+  syncedAt?: number;
+  syncedHash?: string;
+  note?: string | null;
+  tags?: string[];
+  extensions?: Record<string, boolean>;
+}
+
+export interface ExtensionRepositoryEntry {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  source: "chrome-web-store" | "local";
+  chromeStoreUrl?: string;
+  updateUrl?: string;
+  unpackedPath: string;
+  packageHash: string;
+  manifestHash: string;
+  shared: boolean;
+  tags: string[];
+  addedAt: number;
+  updatedAt: number;
+}
+
+export type SkillSource = "built-in" | "local" | "shared-catalog";
+
+export interface SkillRepositoryEntry {
+  id: string;
+  name: string;
+  title: string;
+  version: string;
+  description: string;
+  source: SkillSource;
+  tools: string[];
+  prompt: string;
+  shared: boolean;
+  enabled: boolean;
+  tags: string[];
+  author?: string;
+  homepage?: string;
+  packageHash?: string;
+  addedAt: number;
+  updatedAt: number;
+}
+
+export interface SkillCatalogSource {
+  id: string;
+  name: string;
+  url?: string;
+  enabled: boolean;
+  addedAt: number;
+}
+
+export interface ProfileInfo {
+  dirId: string;
+  name: string;
+  path: string;
+  sizeBytes: number;
+  lastModified: number;
+  running: boolean;
+  pid: number | null;
+  proxy: ProxyConfig | null;
+  proxyName: string | null;
+  proxyMode: ProxyMode;
+  syncedAt: number | null;
+  syncStatus: "synced" | "dirty" | "never";
+  tags: string[];
+  fingerprint: CloakFingerprintMeta;
+}
+
+export interface CookieInfo {
+  domain: string;
+  name: string;
+  value: string;
+  path: string;
+  expires: number | null;
+  secure: boolean;
+  httpOnly: boolean;
+  sameSite: number;
+}
+
+export interface SyncConfig {
+  enabled: boolean;
+  endpoint: string;
+  bucket: string;
+  accessKey: string;
+  secretKey: string;
+}
+
+export interface LlmConfig {
+  provider: "openai" | "claude" | "custom";
+  apiKey: string;
+  apiUrl?: string;
+  model?: string;
+}
+
+export interface PlatformAccount {
+  platformUrl: string;
+  platformUserName: string;
+  platformPassword: string;
+  profileIds?: string[];
+  tags?: string[];
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface MgmtConfig {
+  version: number;
+  cloakBin?: string;
+  defaultProxy: string;
+  proxies: Record<string, ProxyConfig>;
+  proxyDetections?: Record<string, ProxyDetectionCacheEntry>;
+  sync: SyncConfig;
+  cloakProfiles: Record<string, CloakProfileMeta>;
+  extensionRepository?: Record<string, ExtensionRepositoryEntry>;
+  skillRepository?: Record<string, SkillRepositoryEntry>;
+  skillCatalogSources?: SkillCatalogSource[];
+  llm?: LlmConfig;
+  accounts?: PlatformAccount[];
+  automation?: AutomationRule[];
+  agentRuns?: AgentRun[];
+  agentFs?: AgentFsConfig;
+  /** When true, pre-launch consistency blockers refuse the launch. Default false (warn only). */
+  blockOnConsistencyConflict?: boolean;
+  /** Max automation jobs running concurrently. Default 3. */
+  maxConcurrentJobs?: number;
+}
+
+// ── Agent Runs (inspectable trace of each agent task execution) ──
+export type AgentRunStatus = "running" | "done" | "error";
+
+export interface AgentRunSource {
+  type: "chat" | "automation";
+  conversationId?: string;
+  ruleId?: string;
+  ruleName?: string;
+  jobId?: string;
+}
+
+export interface AgentRunStep {
+  id: string;
+  tool: string;
+  args: unknown;
+  result?: unknown;
+  ok: boolean;
+  error?: string;
+  durationMs: number;
+  timestamp: number;
+}
+
+export interface AgentRun {
+  id: string;                 // run_<random>
+  name: string;
+  summary?: string;
+  source: AgentRunSource;
+  status: AgentRunStatus;
+  startedAt: number;
+  finishedAt?: number;
+  steps: AgentRunStep[];
+  variables: Record<string, string>;
+  error?: string;
+}
+
+// ── Agent filesystem access config ──
+export type AgentFsMode = "sandbox" | "allowlist" | "open";
+
+export interface AgentFsConfig {
+  mode: AgentFsMode;
+  allowlist: string[];        // trusted absolute dirs (used in allowlist mode)
+}
+
+// ── Automation (scheduled tasks + event triggers) ──
+export type AutomationTriggerType = "cron" | "once" | "event";
+export type AutomationActionType =
+  | "launch-profile"
+  | "stop-profile"
+  | "agent-task"
+  | "sync-push"
+  | "sync-pull"
+  | "custom-js";
+
+export interface AutomationTrigger {
+  type: AutomationTriggerType;
+  cron?: string;            // cron: "0 9 * * *" (min hour dom mon dow)
+  at?: number;              // once: epoch ms
+  event?: "profile:launched" | "profile:exited";
+  profileFilter?: string;   // event: only match this profile dirId
+}
+
+export interface AutomationAction {
+  type: AutomationActionType;
+  profileDirId?: string;    // launch/stop/agent
+  templateId?: string;      // agent-task built-in template id
+  agentPrompt?: string;     // agent-task preset prompt
+  jsCode?: string;          // custom-js
+}
+
+export interface AutomationRule {
+  id: string;               // rule_<random>
+  name: string;
+  enabled: boolean;
+  trigger: AutomationTrigger;
+  action: AutomationAction;
+  lastRunAt?: number;
+  lastResult?: string;
+  createdAt: number;
+  // ── Execution hardening (optional; defaults applied by JobGuard) ──
+  /** Per-run wall-clock timeout in ms. Default 300000 (5 min). */
+  runTimeoutMs?: number;
+  /** Max automatic retries on failure (exponential backoff). Default 0. */
+  maxRetries?: number;
+  // ── Runtime state (maintained by JobGuard, persisted for observability) ──
+  failureCount?: number;
+  lastError?: string;
+  cooldownUntil?: number;
+}
+
+export interface StorageInfo {
+  profiles: Array<{
+    dirId: string;
+    name: string;
+    browser: "cloak";
+    sizeBytes: number;
+    lastModified: number;
+  }>;
+  totalProfileBytes: number;
+  availableDiskBytes: number;
+  diskUsagePercent: number;
+}
+
+export interface LaunchResult {
+  pid: number;
+  cdpPort: number;
+}
+
+export interface StatusResult {
+  running: boolean;
+  pid: number | null;
+  cdpPort: number | null;
+}
+
+export interface SyncResult {
+  success: boolean;
+  message: string;
+  transferredBytes?: number;
+}

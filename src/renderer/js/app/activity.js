@@ -1,0 +1,111 @@
+// Activity / audit tab — renders the audit log as a "who did what, when"
+// timeline. Answers the team-governance question the scenario eval flagged.
+(function() {
+  "use strict";
+  var cloak = window.cloak;
+  var api = cloak.api;
+  var helpers = cloak.helpers;
+  var toast = helpers.toast;
+  var esc = helpers.esc;
+  var escAttr = helpers.escAttr;
+
+  var CATEGORY_META = {
+    profile:  { icon: "📦", label: "Profile" },
+    proxy:    { icon: "🔌", label: "代理" },
+    account:  { icon: "🔑", label: "账号" },
+    llm:      { icon: "🤖", label: "LLM" },
+    sync:     { icon: "☁️", label: "同步" },
+    automation:{ icon: "⏰", label: "自动化" },
+    agent:    { icon: "🧠", label: "Agent" },
+    settings: { icon: "⚙️", label: "设置" },
+  };
+
+  function fmtTime(ms) {
+    try { return new Date(ms).toLocaleString(); } catch (e) { return String(ms); }
+  }
+
+  function targetKind(target) {
+    var value = String(target || "");
+    if (/^job_[a-z0-9_-]+$/i.test(value)) return "job";
+    if (/^run_[a-z0-9_-]+$/i.test(value)) return "run";
+    if (/^cb_[a-z0-9_-]+$/i.test(value)) return "profile";
+    return "";
+  }
+
+  function renderTarget(entry) {
+    var target = entry && entry.target;
+    if (!target) return "";
+    var value = String(target);
+    var short = value.slice(0, 24);
+    var code = ' <code style="font-family:var(--mono);font-size:11px;">' + esc(short) + '</code>';
+    var kind = targetKind(value);
+    var category = entry.category || "";
+    if (category === "automation" && kind === "job") return code + ' <button class="btn btn-secondary btn-sm" data-activity-action="open-job" data-target-id="' + escAttr(value) + '">查看 Job</button>';
+    if (category === "agent" && kind === "run") return code + ' <button class="btn btn-secondary btn-sm" data-activity-action="open-run" data-target-id="' + escAttr(value) + '">查看 Run</button>';
+    if (category === "profile" && kind === "profile") return code + ' <button class="btn btn-secondary btn-sm" data-activity-action="open-profile" data-target-id="' + escAttr(value) + '">查看 Profile</button>';
+    return code;
+  }
+
+  cloak.activityOpenProfile = function(dirId) {
+    if (!dirId) return;
+    var safeId = String(dirId).replace(/[^a-zA-Z0-9_-]/g, "");
+    cloak.switchTab("profiles");
+    var started = Date.now();
+    function focusWhenReady() {
+      var card = document.querySelector('[data-dir-id="' + safeId + '"]');
+      if (card && card.scrollIntoView) {
+        card.scrollIntoView({ block: "center", behavior: "smooth" });
+        card.style.outline = "2px solid var(--primary)";
+        setTimeout(function() { card.style.outline = ""; }, 1800);
+        return;
+      }
+      if (Date.now() - started < 4000) {
+        setTimeout(focusWhenReady, 100);
+      } else {
+        toast("Profile 不在当前列表中: " + dirId, "error");
+      }
+    }
+    focusWhenReady();
+  };
+
+  cloak.loadActivity = function() {
+    var filter = "";
+    var sel = document.getElementById("activity-filter");
+    if (sel) filter = sel.value || "";
+    var opts = filter ? { category: filter, limit: 300 } : { limit: 300 };
+    api.audit.list(opts).then(function(entries) {
+      var el = document.getElementById("activity-list");
+      if (!entries || entries.length === 0) {
+        el.innerHTML = '<div class="empty-state">还没有审计记录。<br>启动/停止 profile、保存代理/账号/LLM 配置、运行自动化任务都会记录在这里。</div>';
+        return;
+      }
+      var html = entries.map(function(e) {
+        var meta = CATEGORY_META[e.category] || { icon: "•", label: e.category || "?" };
+        var target = renderTarget(e);
+        var detail = e.detail ? '<div style="color:var(--text-muted);font-size:11px;margin-top:2px;">' + esc(String(e.detail).slice(0, 200)) + "</div>" : "";
+        var actor = e.actor && e.actor !== "user" ? ' <span style="color:var(--text-muted);font-size:10px;">by ' + esc(e.actor) + "</span>" : "";
+        return '<div class="profile-card" style="padding:8px 10px;margin-bottom:6px;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
+            '<span>' + meta.icon + ' <strong>' + esc(e.action || "?") + "</strong>" + actor + target + "</span>" +
+            '<span style="color:var(--text-muted);font-size:10px;white-space:nowrap;">' + esc(fmtTime(e.at)) + "</span>" +
+          "</div>" + detail + "</div>";
+      }).join("");
+      el.innerHTML = html;
+      el.onclick = function(event) {
+        var btn = event.target.closest("[data-activity-action]");
+        if (!btn || !el.contains(btn)) return;
+        var id = btn.dataset.targetId || "";
+        if (btn.dataset.activityAction === "open-job") cloak.automationShowJob(id);
+        else if (btn.dataset.activityAction === "open-run") cloak.runsOpen(id);
+        else if (btn.dataset.activityAction === "open-profile") cloak.activityOpenProfile(id);
+      };
+    }).catch(function(e) { toast("加载审计失败: " + (e.message || e), "error"); });
+  };
+
+  cloak.activityFilter = function() { cloak.loadActivity(); };
+
+  cloak.activityClear = function() {
+    if (!confirm("清空所有审计记录？此操作不可撤销。")) return;
+    api.audit.clear().then(function() { toast("已清空", "success"); cloak.loadActivity(); });
+  };
+})();

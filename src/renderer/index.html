@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+ <title>CloakBrowser Lite</title>
+ <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav id="sidebar">
+ <div class="sidebar-header">
+ <h1>CloakLite</h1>
+ <span class="version">v1.0.0</span>
+ </div>
+ <ul class="nav-menu">
+ <li class="nav-item active" data-tab="profiles" data-role="cmd" data-cmd="switchTab" data-i18n="tab.profiles">📦 Profiles</li>
+ <li class="nav-item" data-tab="proxy" data-role="cmd" data-cmd="switchTab" data-i18n="tab.proxy">🔌 Proxies</li>
+ <li class="nav-item" data-tab="storage" data-role="cmd" data-cmd="switchTab" data-i18n="tab.storage">💾 Storage</li>
+ <li class="nav-item" data-tab="sync" data-role="cmd" data-cmd="switchTab" data-i18n="tab.sync">☁️ Sync</li>
+ <li class="nav-item" data-tab="browser" data-role="cmd" data-cmd="switchTab" data-i18n="tab.browser">🥷 CloakBrowser</li>
+ <li class="nav-item" data-tab="extensions" data-role="cmd" data-cmd="switchTab" data-i18n="tab.extensions">🧩 Extensions</li>
+ <li class="nav-item" data-tab="accounts" data-role="cmd" data-cmd="switchTab" data-i18n="tab.accounts">🔑 Accounts</li>
+ <li class="nav-item" data-tab="agent" data-role="cmd" data-cmd="switchTab" data-i18n="tab.agent">🤖 Agent</li>
+ <li class="nav-item" data-tab="automation" data-role="cmd" data-cmd="switchTab">⏰ 自动化</li>
+ <li class="nav-item" data-tab="runs" data-role="cmd" data-cmd="switchTab">🤖 运行记录</li>
+ <li class="nav-item" data-tab="activity" data-role="cmd" data-cmd="switchTab">📜 活动审计</li>
+ <li class="nav-item" data-tab="db" data-role="cmd" data-cmd="switchTab">📊 数据库</li>
+ </ul>
+ <div class="sidebar-footer">
+ <span id="sidebar-chrome-status" style="font-size:10px;display:block;"></span>
+ <div style="display:flex;gap:4px;margin-top:8px;align-items:center;">
+ <div class="theme-toggle dark" data-role="cmd" data-cmd="toggleTheme" id="theme-toggle" style="flex:1;">
+ <div class="toggle-track"><div class="toggle-thumb"></div></div>
+ <span id="theme-label" data-i18n="theme.dark">Dark</span>
+ </div>
+ <button class="btn btn-xs" data-role="cmd" data-cmd="toggleLanguage" title="Switch language" style="padding:4px 8px;font-size:11px;">🌐 <span id="lang-label">EN</span></button>
+ </div>
+ </div>
+</nav>
+
+<main id="content">
+
+ <!-- ══════ Profiles Tab ══════ -->
+ <section id="tab-profiles" class="tab-content active">
+ <div class="tab-header">
+ <h2 data-i18n="profiles.title">Browser Profiles</h2>
+ <div class="header-btns">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="newProfile" data-i18n="profiles.new">🥷 + New Cloak Profile</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="bulkImport" data-i18n="profiles.bulk-import">📥 Bulk Import</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="bulkStart" data-i18n="profiles.start-all">▶ Start All</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="bulkStop" data-i18n="profiles.stop-all">⏹ Stop All</button>
+ </div>
+ </div>
+ <div id="import-section" class="card" style="display:none">
+ <h3>Import Existing Profiles</h3>
+ <div id="import-list"></div>
+ </div>
+ <div id="profile-list" class="profile-grid">
+ <div class="loading">Loading profiles...</div>
+ </div>
+ </section>
+
+ <!-- ══════ Proxies Tab ══════ -->
+ <section id="tab-proxy" class="tab-content">
+ <div class="tab-header">
+ <h2 data-i18n="proxy.title">Proxy Configurations</h2>
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="newProxy" data-i18n="proxy.add">+ Add Proxy</button>
+ </div>
+ <div id="proxy-list" class="profile-grid">
+ <div class="loading">Loading proxies...</div>
+ </div>
+ </section>
+
+ <!-- ══════ Storage Tab ══════ -->
+ <section id="tab-storage" class="tab-content">
+ <div class="tab-header">
+ <h2 data-i18n="storage.title">Storage</h2>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="clearAllCaches" data-i18n="storage.clear-all">Clear All Caches</button>
+ </div>
+ <div class="card">
+ <h3 data-i18n="storage.disk-usage">Disk Usage</h3>
+ <div id="storage-stats">
+ <div class="stat-row"><span data-i18n="storage.profile-data">Profile Data</span><span id="stat-profile-total">--</span></div>
+ <div class="stat-row"><span data-i18n="storage.disk-available">Disk Available</span><span id="stat-disk-available">--</span></div>
+ <div class="stat-row"><span data-i18n="storage.disk-usage">Disk Usage</span><span id="stat-disk-usage">--</span></div>
+ </div>
+ </div>
+ <div id="storage-profile-list" class="profile-grid">
+ <div class="loading">Loading...</div>
+ </div>
+ </section>
+
+ <!-- ══════ Sync Tab ══════ -->
+ <section id="tab-sync" class="tab-content">
+ <div class="tab-header"><h2 data-i18n="sync.title">Remote Sync</h2></div>
+ <div class="card">
+ <h3 data-i18n="sync.status">Status</h3>
+ <div id="sync-status">
+ <p>Sync is <strong id="sync-enabled-text">disabled</strong></p>
+ <p>Endpoint: <span id="sync-endpoint">--</span></p>
+ <p>Bucket: <span id="sync-bucket">--</span></p>
+ <p style="font-size:11px;color:var(--text-muted);">Synced: config · cookies (CDP) · localStorage · bookmarks · preferences</p>
+ </div>
+ <div class="btn-row">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="syncPush" data-i18n="sync.push">Push</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="syncPull" data-i18n="sync.pull">Pull</button>
+ </div>
+ </div>
+ <div class="card">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
+ <h3 style="margin:0;">Pre-flight Preview</h3>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadSyncPreview">刷新 Preview</button>
+ </div>
+ <p id="sync-preview-message" style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">Loading...</p>
+ <div id="sync-preview" class="profile-grid"><div class="loading">Loading...</div></div>
+ </div>
+ <div class="card">
+ <h3 data-i18n="sync.config">Configuration</h3>
+ <div class="sync-form">
+ <div class="form-row"><label><input type="checkbox" id="sync-enabled"> Enable</label></div>
+ <div class="form-row"><label data-i18n="sync.field.endpoint">Endpoint</label><input id="sync-endpoint-input" placeholder="https://oss.example.com"></div>
+ <div class="form-row"><label data-i18n="sync.field.bucket">Bucket</label><input id="sync-bucket-input" placeholder="cloak"></div>
+ <div class="form-row"><label data-i18n="sync.field.access">Access Key</label><input id="sync-ak-input"></div>
+ <div class="form-row"><label data-i18n="sync.field.secret">Secret Key</label><input id="sync-sk-input" type="password"></div>
+ <button type="button" class="btn btn-primary btn-sm" data-role="cmd" data-cmd="syncSave" data-i18n="common.save">Save</button>
+ </div>
+ </div>
+ </section>
+
+ <!-- ══════ CloakBrowser Tab ══════ -->
+ <section id="tab-browser" class="tab-content">
+ <div class="tab-header">
+ <h2 data-i18n="browser.title">CloakBrowser Binary</h2>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadBrowserTab" data-i18n="browser.refresh">Refresh</button>
+ </div>
+ <div class="card">
+ <h3 data-i18n="browser.install-upgrade">Install / Upgrade</h3>
+ <div id="cloak-binary-card">
+ <div class="loading">Loading binary status...</div>
+ </div>
+ <div class="btn-row">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="installCloakBinary" data-i18n="browser.action.install">Install</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="checkCloakUpdate" data-i18n="browser.action.check">Check Update</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="updateCloakBinary" data-i18n="browser.action.update">Update</button>
+ <button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="clearCloakBinaryCache" data-i18n="browser.action.clear">Clear Cache</button>
+ </div>
+ <div id="cloak-binary-action-status" style="font-size:11px;color:var(--text-muted);margin-top:8px;"></div>
+ </div>
+ </section>
+
+ <!-- ══════ Extensions Tab ══════ -->
+ <section id="tab-extensions" class="tab-content">
+ <div class="tab-header">
+ <h2 data-i18n="ext.title">Private Extension Repository</h2>
+ <div class="header-btns">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="showRepositoryAdd" data-i18n="ext.add">+ 从商店下载</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="extInstallFromFile">📁 导入 CRX/ZIP</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="extInstallFromDir">📂 导入解压目录</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="exportSharedExtensions" data-i18n="ext.export-shared">Export Shared</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadExtensionsTab" data-i18n="browser.refresh">Refresh</button>
+ </div>
+ </div>
+ <div id="ext-install-status" style="margin:8px 0;font-size:11px;color:var(--text-muted);"></div>
+ <div class="card">
+ <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">This is the global private catalog of available Chrome extensions. Profiles only choose which catalog entries to enable.</p>
+ <input id="extension-repo-search" placeholder="Search name, ID, description, or tag..." data-i18n-placeholder="ext.search" data-role="input" data-input-cmd="loadExtensionsTab">
+ <div id="extension-repo-status" style="font-size:11px;color:var(--text-muted);margin-top:8px;"></div>
+ </div>
+ <div id="extension-repo-list" class="profile-grid">
+ <div class="loading">Loading extension repository...</div>
+ </div>
+ </section>
+
+ <!-- ══════ Accounts Tab ══════ -->
+ <section id="tab-accounts" class="tab-content">
+ <div class="tab-header">
+ <h2 data-i18n="acct.title">Account Management</h2>
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="agentAddAccount" data-i18n="acct.add">+ Add Account</button>
+ </div>
+ <div class="card">
+ <p style="font-size:12px;color:var(--text-muted);margin:0;">Saved accounts are redacted in the UI and can be used by the local agent for form filling.</p>
+ </div>
+ <div id="accounts-tab-list"></div>
+ </section>
+
+ <!-- ══════ Agent Tab ══════ -->
+ <section id="tab-agent" class="tab-content">
+ <div class="agent-layout">
+ <!-- Conversation Sidebar -->
+ <div id="agent-sidebar" style="width:210px;min-width:160px;border-right:1px solid var(--border);display:flex;flex-direction:column;">
+ <div style="padding:12px;border-bottom:1px solid var(--border);">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="agentNewConv" style="width:100%;" data-i18n="agent.new-chat">+ New Chat</button>
+ </div>
+ <div id="agent-conv-list" style="flex:1;overflow-y:auto;padding:6px;">
+ <div style="color:var(--text-muted);font-size:11px;text-align:center;padding:16px;">Loading...</div>
+ </div>
+ <div style="padding:6px 8px;border-top:1px solid var(--border);display:flex;gap:4px;">
+ <button class="btn btn-secondary btn-xs" data-role="cmd" data-cmd="switchAgentSub" data-sub="config" style="flex:1;" title="API Config">⚙️</button>
+ <button class="btn btn-secondary btn-xs" data-role="cmd" data-cmd="switchAgentSub" data-sub="accounts" style="flex:1;" title="Accounts">🔑</button>
+ <button class="btn btn-secondary btn-xs" data-role="cmd" data-cmd="switchAgentSub" data-sub="skills" style="flex:1;" title="Skills">📋</button>
+ </div>
+ </div>
+
+ <!-- Main Area -->
+ <div class="agent-main">
+
+ <!-- Chat -->
+ <div id="agent-view-chat" class="agent-view" style="display:flex;">
+ <div id="agent-chat-header" style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;">
+ <span id="agent-chat-title" style="font-weight:600;font-size:14px;">New Chat</span>
+ <button class="btn btn-xs" style="color:var(--text-muted);" data-role="cmd" data-cmd="agentDeleteConv">🗑</button>
+ </div>
+ <div id="agent-chat-messages"></div>
+ <div class="agent-input-bar" style="padding:10px 16px;display:flex;gap:8px;align-items:flex-end;">
+ <textarea id="agent-chat-input" rows="1" placeholder="Ask the agent..." data-i18n-placeholder="agent.placeholder"
+ data-role="keydown" data-keydown-cmd="agentSend"
+ style="min-height:38px;max-height:120px;"></textarea>
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="agentSend">↑</button>
+ </div>
+ <span id="agent-chat-status" style="font-size:10px;color:var(--text-muted);padding:0 16px 4px;display:block;"></span>
+ </div>
+
+ <!-- Config -->
+ <div id="agent-view-config" class="agent-view agent-view-scroll" style="display:none;">
+ <h4>⚙️ API Configuration</h4>
+ <p style="font-size:11px;color:var(--text-muted);margin:4px 0 14px;">Auto-detected from local Claude settings.</p>
+ <div class="form-row"><label>Provider</label><select id="agent-llm-provider" data-role="change" data-change-cmd="agentProviderChanged"><option value="openai">OpenAI / Compatible</option><option value="claude">Claude</option></select></div>
+ <div class="form-row"><label>API Key</label><input id="agent-llm-apikey" type="password" placeholder="sk-..."></div>
+ <div class="form-row"><label>Model</label><input id="agent-llm-model" placeholder="gpt-5.5-high"></div>
+ <div class="form-row"><label data-i18n="sync.field.endpoint">Endpoint</label><input id="agent-llm-url" placeholder="https://api.openai.com/v1/chat/completions"></div>
+ <div style="display:flex;gap:8px;align-items:center;">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="agentSaveConfig" data-i18n="common.save">Save</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="agentDetectConfig">🔄 Auto-Detect</button>
+ <span id="agent-config-saved" style="display:none;color:var(--success);font-size:12px;">✓ Saved</span>
+ </div>
+
+ <h4 style="margin:18px 0 6px;">📁 Agent 文件访问</h4>
+ <p style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;">read_file / write_file 工具的访问边界。</p>
+ <div class="form-row"><label>模式</label>
+ <select id="agent-fs-mode" data-role="change" data-change-cmd="agentFsModeChanged">
+ <option value="sandbox">沙箱(仅 agent-files 目录)</option>
+ <option value="allowlist">授信目录列表</option>
+ <option value="open">任意路径(风险高)</option>
+ </select>
+ </div>
+ <div id="agent-fs-allowlist-row" class="form-row" style="display:none;align-items:flex-start;">
+ <label>授信目录</label>
+ <div style="flex:1;">
+ <div id="agent-fs-allowlist" style="margin-bottom:6px;font-size:12px;"></div>
+ <button type="button" class="btn btn-secondary btn-xs" data-role="cmd" data-cmd="agentFsAddDir">+ 添加目录</button>
+ </div>
+ </div>
+ <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="agentSaveFs">保存文件设置</button>
+ <span id="agent-fs-saved" style="display:none;color:var(--success);font-size:12px;">✓ 已保存</span>
+ </div>
+
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="switchAgentSub" data-sub="chat" style="margin-top:16px;">← Back</button>
+ </div>
+
+ <!-- Accounts -->
+ <div id="agent-view-accounts" class="agent-view agent-view-scroll" style="display:none;">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+ <h4>🔑 Platform Accounts</h4>
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="agentAddAccount">+ Add</button>
+ </div>
+ <div id="agent-accounts-list"></div>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="switchAgentSub" data-sub="chat" style="margin-top:16px;">← Back</button>
+ </div>
+
+ <!-- Skills -->
+ <div id="agent-view-skills" class="agent-view agent-view-scroll" style="display:none;">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;">
+ <h4>📋 Skills</h4>
+ <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="skillMarket">🧩 Marketplace</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="showSkillEditor">+ Add Skill</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="exportSharedSkills" data-i18n="ext.export-shared">Export Shared</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="showSkillImport">Import</button>
+ </div>
+ </div>
+ <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px;">Skills are Agent automation prompt/tool recipes. They are separate from Chrome extensions and are persisted in your local private skill marketplace.</p>
+ <div id="agent-skills-list"></div>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="switchAgentSub" data-sub="chat" style="margin-top:16px;">← Back</button>
+ </div>
+ </div>
+ </div>
+ </section>
+
+ <!-- ══════ Automation Tab ══════ -->
+ <section id="tab-automation" class="tab-content">
+ <div class="tab-header">
+ <h2>⏰ 自动化任务</h2>
+ <div class="header-btns">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="automationNew">+ 新建任务</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadAutomationTab">🔄 刷新</button>
+ </div>
+ </div>
+ <div class="card">
+ <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">定时任务(cron) · 单次定时(once) · 事件触发(profile 启动/退出)。动作:启动/停止 profile、跑 Agent 任务、同步 S3、自定义 JS。</p>
+ <div id="automation-list" class="profile-grid"><div class="loading">Loading...</div></div>
+ </div>
+ <div class="card">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
+ <h3 style="margin:0;">Durable Jobs</h3>
+ <div style="display:flex;gap:6px;align-items:center;">
+ <select id="automation-job-status" data-role="change" data-change-cmd="automationRefreshJobs" style="font-size:11px;padding:4px 6px;">
+ <option value="">全部状态</option>
+ <option value="running">运行中</option>
+ <option value="queued">排队</option>
+ <option value="done">完成</option>
+ <option value="failed">失败</option>
+ <option value="skipped">跳过</option>
+ <option value="cancelled">已取消</option>
+ </select>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="automationRefreshJobs">刷新 Jobs</button>
+ </div>
+ </div>
+ <div id="automation-jobs" class="profile-grid"><div class="loading">Loading...</div></div>
+ </div>
+ <div class="card">
+ <h3>执行日志</h3>
+ <pre id="automation-log" style="font-size:11px;max-height:200px;overflow:auto;background:var(--surface);padding:8px;border-radius:4px;white-space:pre-wrap;font-family:var(--mono);">(空)</pre>
+ </div>
+ </section>
+
+ <!-- ══════ Workflows Tab ══════ -->
+ <section id="tab-runs" class="tab-content">
+ <div class="tab-header">
+ <h2>🤖 Agent 运行记录</h2>
+ <div class="header-btns">
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadRunsTab">🔄 刷新</button>
+ <button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="runsClear">清空</button>
+ </div>
+ </div>
+ <div class="card">
+ <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">每次 Agent 任务(对话或定时触发)的执行步骤、变量、耗时与结果。点击查看完整步骤时间线。</p>
+ <div id="agent-run-list" class="profile-grid"><div class="loading">Loading...</div></div>
+ </div>
+ </section>
+
+ <!-- ══════ DB Tab ══════ -->
+ <section id="tab-db" class="tab-content">
+ <div class="tab-header">
+ <h2>📊 Agent 数据库</h2>
+ <div class="header-btns">
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadDbTab">🔄 刷新</button>
+ </div>
+ </div>
+ <div style="display:flex;gap:16px;align-items:flex-start;">
+ <div class="card" style="flex:0 0 260px;">
+ <h4 style="margin:0 0 8px;">表</h4>
+ <div id="db-tables" style="font-size:12px;"><div class="loading">Loading...</div></div>
+ </div>
+ <div class="card" style="flex:1;min-width:0;">
+ <h4 style="margin:0 0 8px;">SQL</h4>
+ <textarea id="db-sql" rows="3" placeholder="SELECT * FROM customers LIMIT 10" style="width:100%;font-family:var(--mono);font-size:12px;box-sizing:border-box;"></textarea>
+ <div class="btn-row" style="margin:6px 0;">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="dbRunSql">▶ 运行</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="dbRunSql" data-cmd-arg="exec">⚡ 执行(写/DDL)</button>
+ </div>
+ <div id="db-result" style="font-size:11px;overflow:auto;max-height:420px;"></div>
+ </div>
+ </div>
+ </section>
+
+ <section id="tab-activity" class="tab-content">
+ <div class="tab-header">
+  <h2>📜 活动审计</h2>
+  <div class="header-btns">
+   <select id="activity-filter" data-role="change" data-change-cmd="activityFilter" style="font-size:12px;padding:4px 8px;">
+     <option value="">全部</option>
+     <option value="profile">Profile</option>
+     <option value="proxy">代理</option>
+     <option value="account">账号</option>
+     <option value="llm">LLM</option>
+     <option value="sync">同步</option>
+     <option value="automation">自动化</option>
+     <option value="agent">Agent</option>
+   </select>
+   <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadActivity">🔄 刷新</button>
+   <button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="activityClear">🗑 清空</button>
+  </div>
+ </div>
+ <div id="activity-list" style="padding:8px 12px;font-size:12px;max-height:70vh;overflow:auto;"></div>
+ </section>
+
+<!-- Approval dialog (risky-operation authorization) -->
+<dialog id="dlg-approval">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+ <h3 style="margin:0;">⚠️ 操作授权</h3>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="approvalDeny" data-cmd-arg="close">✕</button>
+ </div>
+ <p style="font-size:13px;margin:0 0 6px;">Agent 请求执行一个敏感操作,需要你确认:</p>
+ <div id="approval-desc" style="padding:10px;background:var(--surface);border-radius:6px;font-family:var(--mono);font-size:12px;margin-bottom:12px;word-break:break-all;"></div>
+ <div id="approval-detail" style="font-size:11px;color:var(--text-muted);margin-bottom:14px;"></div>
+ <div class="btn-row">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="approvalAllow" data-cmd-arg="once">✓ 允许一次</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="approvalAllow" data-cmd-arg="always">✓ 始终允许</button>
+ <button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="approvalDeny" data-cmd-arg="deny">✗ 拒绝</button>
+ </div>
+</dialog>
+
+
+</main>
+
+<!-- ── New Profile Dialog ── -->
+
+<!-- ── Bulk Import Dialog ── -->
+<dialog id="dlg-bulk-import">
+ <form method="dialog" data-role="submit" data-submit-cmd="doBulkImport">
+ <h3>📥 Bulk Import Profiles</h3>
+ <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+ One Cloak profile per line. Format: <code>name, platform, locale, timezone, seed, webrtcIp</code><br>
+ Example: <code>Work, windows, en-US, America/Chicago, 54321, </code>
+ </p>
+ <textarea id="bulk-import-text" rows="8" style="width:100%;font-family:var(--mono);font-size:11px;" placeholder="Work, windows, en-US, America/Chicago, 54321,
+Personal, macos, en-GB, Europe/London, 67890,"></textarea>
+ <div class="form-row"><label>Proxy</label><select id="bulk-import-proxy"><option value="">(default)</option></select></div>
+ <div id="bulk-import-status" style="margin-top:4px;font-size:11px;"></div>
+ <div class="btn-row">
+ <button type="submit" class="btn btn-primary">Import</button>
+ <button type="button" class="btn btn-secondary" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+<dialog id="dlg-profile" class="dialog-wide">
+ <form method="dialog" data-role="submit" data-submit-cmd="createProfile">
+ <h3>Create New Profile</h3>
+ <div class="form-row"><label>Name *</label><input id="new-profile-name" placeholder="My Profile" required></div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="new-profile-browser-row">
+ <div class="form-row"><label>Browser</label>
+ <select id="new-profile-browser" data-role="change" data-change-cmd="profileBrowserChanged">
+ <option value="cloak" selected>CloakBrowser</option>
+ </select>
+ </div>
+ <div class="form-row"><label>Version</label>
+ <select id="new-profile-version">
+ <option value="149">v149 (latest)</option>
+ <option value="148">v148</option>
+ <option value="147">v147</option>
+ </select>
+ </div>
+ </div>
+ <div class="form-row" id="new-profile-proxy-row"><label>Proxy</label><select id="new-profile-proxy"><option value="">(default)</option></select></div>
+ <!-- CloakBrowser-specific options -->
+ <div id="new-profile-cloak-opts" style="display:block;">
+ <div class="form-row"><label>Fingerprint Seed</label>
+ <div style="display:flex;gap:8px;align-items:center;">
+ <input id="new-cloak-seed" type="number" placeholder="10000-99999 (empty = random)" min="1" max="999999" style="flex:1;">
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="random-seed" data-cmd-target="new-cloak-seed">🎲 Random</button>
+ </div>
+ <p style="font-size:10px;color:var(--text-muted);margin-top:2px;">One integer controls GPU, screen, hardware, canvas, audio, fonts — same seed = identical fingerprint.</p>
+ </div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+ <div class="form-row"><label>Platform</label>
+ <select id="new-cloak-platform">
+ <option value="windows">Windows</option>
+ <option value="macos">macOS</option>
+ </select>
+ </div>
+ <div class="form-row"><label>Timezone</label>
+ <select id="new-cloak-timezone">
+ <option value="">🛰 Auto (match proxy exit IP)</option>
+ <option value="Asia/Shanghai">Asia/Shanghai (UTC+8)</option>
+ <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+ <option value="Asia/Seoul">Asia/Seoul (UTC+9)</option>
+ <option value="Asia/Singapore">Asia/Singapore (UTC+8)</option>
+ <option value="Asia/Hong_Kong">Asia/Hong_Kong (UTC+8)</option>
+ <option value="Asia/Dubai">Asia/Dubai (UTC+4)</option>
+ <option value="Asia/Kolkata">Asia/Kolkata (UTC+5:30)</option>
+ <option value="America/New_York">America/New_York (UTC-5)</option>
+ <option value="America/Chicago">America/Chicago (UTC-6)</option>
+ <option value="America/Denver">America/Denver (UTC-7)</option>
+ <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
+ <option value="America/Sao_Paulo">America/Sao_Paulo (UTC-3)</option>
+ <option value="Europe/London">Europe/London (UTC+0)</option>
+ <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
+ <option value="Europe/Berlin">Europe/Berlin (UTC+1)</option>
+ <option value="Europe/Moscow">Europe/Moscow (UTC+3)</option>
+ <option value="Pacific/Auckland">Pacific/Auckland (UTC+12)</option>
+ <option value="Australia/Sydney">Australia/Sydney (UTC+10)</option>
+ </select>
+ </div>
+ </div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+ <div class="form-row"><label>Language / Locale</label>
+ <select id="new-cloak-locale">
+ <option value="">🛰 Auto (match proxy exit IP)</option>
+ <option value="zh-CN">zh-CN (Chinese)</option>
+ <option value="zh-TW">zh-TW (Traditional Chinese)</option>
+ <option value="en-US">en-US (English US)</option>
+ <option value="en-GB">en-GB (English UK)</option>
+ <option value="ja-JP">ja-JP (Japanese)</option>
+ <option value="ko-KR">ko-KR (Korean)</option>
+ <option value="de-DE">de-DE (German)</option>
+ <option value="fr-FR">fr-FR (French)</option>
+ <option value="es-ES">es-ES (Spanish)</option>
+ <option value="pt-BR">pt-BR (Portuguese Brazil)</option>
+ <option value="ru-RU">ru-RU (Russian)</option>
+ <option value="ar-SA">ar-SA (Arabic)</option>
+ <option value="th-TH">th-TH (Thai)</option>
+ <option value="vi-VN">vi-VN (Vietnamese)</option>
+ </select>
+ </div>
+ <div class="form-row"><label>WebRTC IP</label>
+ <input id="new-cloak-webrtc" placeholder="Auto (proxy exit IP) - or custom IP">
+ </div>
+ </div>
+ <details style="margin-top:8px;">
+ <summary style="cursor:pointer;font-size:12px;color:var(--text);">Advanced hardware fingerprint</summary>
+ <p style="font-size:10px;color:var(--text-muted);margin:6px 0;">Leave empty to let the seed generate coherent hardware. Override only when a risk checker reports a specific mismatch.</p>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+ <div class="form-row"><label>GPU Vendor</label><input id="new-cloak-gpu-vendor" placeholder="Google Inc. / Apple Inc."></div>
+ <div class="form-row"><label>GPU Renderer</label><input id="new-cloak-gpu-renderer" placeholder="ANGLE (Intel UHD Graphics 620)"></div>
+ <div class="form-row"><label>CPU Cores</label><input id="new-cloak-hardware-concurrency" type="number" min="1" max="64" placeholder="8"></div>
+ <div class="form-row"><label>Device Memory (GB)</label><input id="new-cloak-device-memory" type="number" min="1" max="128" placeholder="8"></div>
+ <div class="form-row"><label>Screen Width</label><input id="new-cloak-screen-width" type="number" min="320" max="10000" placeholder="1920"></div>
+ <div class="form-row"><label>Screen Height</label><input id="new-cloak-screen-height" type="number" min="240" max="10000" placeholder="1080"></div>
+ <div class="form-row"><label>Storage Quota (MB)</label><input id="new-cloak-storage-quota" type="number" min="1" max="1048576" placeholder="auto"></div>
+ <div class="form-row"><label>Taskbar Height</label><input id="new-cloak-taskbar-height" type="number" min="0" max="500" placeholder="40"></div>
+ <div class="form-row" style="grid-column:1 / -1;"><label>Fonts Directory</label><input id="new-cloak-fonts-dir" placeholder="Absolute path to custom fonts directory"></div>
+ </div>
+ </details>
+ </div>
+
+ <div class="btn-row">
+ <button type="submit" class="btn btn-primary" data-i18n="common.create">Create</button>
+ <button type="button" class="btn btn-secondary" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+
+<!-- ── Edit Profile Dialog ── -->
+
+
+<!-- ── Rename Dialog ── -->
+<dialog id="dlg-rename">
+ <form method="dialog" data-role="submit" data-submit-cmd="doRename">
+ <h3>Rename Profile</h3>
+ <input type="hidden" id="rename-dir-id">
+ <div class="form-row"><label>New Name *</label><input id="rename-name" placeholder="Profile name" required></div>
+ <div class="btn-row">
+ <button type="submit" class="btn btn-primary" data-i18n="common.rename">Rename</button>
+ <button type="button" class="btn btn-secondary" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+
+<!-- ── Cookie Dialog ── -->
+<dialog id="dlg-cookies" class="dialog-wide">
+ <form method="dialog">
+ <h3>🍪 Cookies</h3>
+ <input type="hidden" id="cookie-dir-id">
+ <div style="display:flex;gap:8px;margin-bottom:12px;">
+ <input id="cookie-search" placeholder="Search domain/name..." data-i18n-placeholder="cookies.search" style="flex:1" data-role="input" data-input-cmd="cookieSearch">
+ </div>
+ <div id="cookie-list" style="max-height:300px;overflow-y:auto;margin-bottom:12px;">
+ <div class="loading">Loading...</div>
+ </div>
+ <h4 style="font-size:13px;margin-bottom:8px;">Add Cookie</h4>
+ <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:6px;">
+ <input id="cookie-new-domain" placeholder="Domain (e.g. .example.com)" data-i18n-placeholder="cookies.field.domain">
+ <input id="cookie-new-name" placeholder="Name" data-i18n-placeholder="cookies.field.name">
+ <input id="cookie-new-value" placeholder="Value" data-i18n-placeholder="cookies.field.value">
+ </div>
+ <div class="btn-row">
+ <button type="button" class="btn btn-primary btn-sm" data-role="cmd" data-cmd="addCookie">Add Cookie</button>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-i18n="common.close">Close</button>
+ </div>
+ </form>
+</dialog>
+
+<!-- ── Proxy Edit Dialog ── -->
+<dialog id="dlg-proxy">
+ <form method="dialog" data-role="submit" data-submit-cmd="saveProxy">
+ <h3 id="dlg-proxy-title">Add Proxy</h3>
+ <input type="hidden" id="dlg-proxy-old-name">
+ <div class="form-row"><label>Name *</label><input id="dlg-proxy-name" placeholder="e.g. home, office, vps" required></div>
+ <div class="form-row"><label>Type</label><select id="dlg-proxy-type"><option value="http">HTTP</option><option value="socks5">SOCKS5</option><option value="socks5h">SOCKS5H</option></select></div>
+ <div class="form-row"><label>Host</label><input id="dlg-proxy-host" placeholder="127.0.0.1" required></div>
+ <div class="form-row"><label>Port</label><input id="dlg-proxy-port" type="number" placeholder="7890" min="1" max="65535" required></div>
+ <div class="form-row"><label>Username</label><input id="dlg-proxy-username" autocomplete="off" placeholder="optional"></div>
+ <div class="form-row"><label>Password</label><input id="dlg-proxy-password" type="password" autocomplete="off" placeholder="optional"></div>
+ <div class="form-row"><label>Bypass List</label><input id="dlg-proxy-bypass" placeholder="optional, comma-separated hosts"></div>
+ <div class="btn-row">
+ <button type="submit" class="btn btn-primary" data-i18n="common.save">Save</button>
+ <button type="button" class="btn btn-secondary" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+
+<!-- ── Confirm Dialog ── -->
+<dialog id="dlg-confirm">
+ <form method="dialog" data-role="submit" data-submit-cmd="doConfirm">
+ <h3 data-i18n="common.confirm">Confirm</h3>
+ <p id="dlg-confirm-msg"></p>
+ <div class="btn-row">
+ <button type="submit" class="btn btn-danger" data-i18n="common.confirm">Confirm</button>
+ <button type="button" class="btn btn-secondary" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+
+<!-- ── Extensions Dialog ── -->
+<dialog id="dlg-extensions" class="dialog-wide">
+ <form method="dialog" style="display:flex;flex-direction:column;max-height:80vh;">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+ <h3 style="margin:0;">🧩 <span id="ext-dlg-title">Extensions</span></h3>
+ <div style="display:flex;gap:6px;">
+ <button type="button" class="btn btn-primary btn-sm" data-role="cmd" data-cmd="switchTab" data-tab="extensions">管理扩展仓库</button>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog">✕</button>
+ </div>
+ </div>
+
+ <div id="ext-dlg-status" style="margin-bottom:8px;font-size:11px;color:var(--text-muted);"></div>
+
+ <!-- Extension list -->
+ <div id="ext-list" style="flex:1;overflow-y:auto;max-height:400px;"></div>
+
+ <div style="margin-top:12px;font-size:10px;color:var(--text-muted);text-align:center;">
+ Enable extensions from the private repository; changes apply on next CloakBrowser launch.
+ </div>
+ </form>
+</dialog>
+
+<!-- ── Extension Repository Dialog ── -->
+<dialog id="dlg-extension-repo">
+ <form method="dialog" data-role="submit" data-submit-cmd="saveRepositoryExtension">
+ <h3>Add Chrome Extension to Repository</h3>
+ <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Paste a Chrome Web Store URL or a 32-character extension ID. The package is cached once in the private repository and profiles can enable it later.</p>
+ <div class="form-row"><label>Chrome Extension URL / ID *</label><input id="repo-ext-input" placeholder="https://chromewebstore.google.com/detail/..." required></div>
+ <div class="form-row"><label>Tags</label><input id="repo-ext-tags" placeholder="wallet, captcha, work"></div>
+ <div class="form-row"><label><input type="checkbox" id="repo-ext-shared"> Mark as shareable in exported catalog</label></div>
+ <div id="repo-ext-save-status" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
+ <div class="btn-row">
+ <button type="submit" class="btn btn-primary">Add / Update</button>
+ <button type="button" class="btn btn-secondary" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+
+<!-- ── Skill Market Dialog ── -->
+
+<!-- ── Account Dialog ── -->
+<dialog id="dlg-account">
+ <form method="dialog" data-role="submit" data-submit-cmd="saveAccount">
+ <h3 id="dlg-account-title">Add Account</h3>
+ <input type="hidden" id="acct-edit-index" value="-1">
+ <div class="form-row"><label>Platform URL</label><input id="acct-url" placeholder="https://twitter.com" required></div>
+ <div class="form-row"><label>Username *</label><input id="acct-username" placeholder="myaccount" required></div>
+ <div class="form-row"><label>Password *</label><input id="acct-password" type="password" placeholder="password"></div>
+ <div class="form-row"><label>Tags (comma-separated)</label><input id="acct-tags" placeholder="social, twitter"></div>
+ <div class="btn-row">
+ <button type="submit" class="btn btn-primary" data-i18n="common.save">Save</button>
+ <button type="button" class="btn btn-secondary" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+<dialog id="dlg-skill-market" class="dialog-wide">
+ <h3>🧩 Skill Marketplace</h3>
+ <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">Local/private marketplace of Agent automation prompt/tool recipes. These are not Chrome extensions; enabled skills are appended to the Agent system prompt.</p>
+ <input id="skill-market-search" placeholder="Search skills, descriptions, tags..." data-i18n-placeholder="agent.market.search" data-role="input" data-input-cmd="refreshSkillMarket" style="margin-bottom:10px;">
+ <div id="skill-market-list">
+ <div class="loading">Loading marketplace...</div>
+ </div>
+ <div class="btn-row">
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="showSkillEditor">+ Add Skill</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="showSkillImport">Import Catalog</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-i18n="common.close">Close</button>
+ </div>
+</dialog>
+
+<dialog id="dlg-skill-editor" class="dialog-wide">
+ <form method="dialog" data-role="submit" data-submit-cmd="saveSkill">
+ <h3 id="skill-editor-title">Add Agent Skill</h3>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+ <div class="form-row"><label>Skill ID *</label><input id="skill-id" placeholder="amazon-scraper" required></div>
+ <div class="form-row"><label>Version</label><input id="skill-version" placeholder="1.0.0"></div>
+ </div>
+ <div class="form-row"><label>Title *</label><input id="skill-title" placeholder="Amazon Product Scraper" required></div>
+ <div class="form-row"><label>Description</label><input id="skill-description" placeholder="What this skill helps the Agent do"></div>
+ <div class="form-row"><label>Tools (comma-separated)</label><input id="skill-tools" placeholder="browser_navigate, browser_snapshot, browser_click"></div>
+ <div class="form-row"><label>Tags (comma-separated)</label><input id="skill-tags" placeholder="scraping, ecommerce"></div>
+ <div class="form-row"><label>Author</label><input id="skill-author" placeholder="me / team / community"></div>
+ <div class="form-row"><label>Homepage (HTTPS)</label><input id="skill-homepage" placeholder="https://example.com/skill-docs"></div>
+ <div class="form-row"><label>Prompt *</label><textarea id="skill-prompt" rows="8" placeholder="Describe exactly how the Agent should behave when this skill is enabled..." required></textarea></div>
+ <div style="display:flex;gap:14px;flex-wrap:wrap;margin:8px 0;font-size:12px;">
+ <label><input type="checkbox" id="skill-enabled" checked> Enabled</label>
+ <label><input type="checkbox" id="skill-shared"> Mark as shareable in exported catalog</label>
+ </div>
+ <div id="skill-save-status" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
+ <div class="btn-row">
+ <button type="submit" class="btn btn-primary">Save Skill</button>
+ <button type="button" class="btn btn-secondary" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+
+<dialog id="dlg-skill-import" class="dialog-wide">
+ <form method="dialog" data-role="submit" data-submit-cmd="importSharedSkills">
+ <h3>Import Shared Skill Catalog</h3>
+ <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Paste exported skill catalog JSON. Imported skills are stored disabled by default until you enable them.</p>
+ <div class="form-row"><label>Catalog JSON</label><textarea id="skill-import-json" rows="10" placeholder='[{"id":"example-skill","prompt":"..."}]' required></textarea></div>
+ <div id="skill-import-status" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
+ <div class="btn-row">
+ <button type="submit" class="btn btn-primary">Import</button>
+ <button type="button" class="btn btn-secondary" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+
+<!-- Note dialog -->
+<dialog id="dlg-note">
+ <form method="dialog" data-role="submit" data-submit-cmd="saveNote">
+ <h3>✏️ Profile Note</h3>
+ <input type="hidden" id="note-dir-id">
+ <div class="form-row"><label>Note</label><textarea id="note-text" rows="3" placeholder="Add a note for this profile..."></textarea></div>
+ <div class="btn-row">
+ <button type="submit" class="btn btn-primary btn-sm" data-i18n="common.save">Save</button>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+
+<!-- Automation editor dialog -->
+<dialog id="dlg-automation" class="dialog-wide">
+ <form method="dialog" data-role="submit" data-submit-cmd="saveAutomation">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+ <h3 style="margin:0;">⏰ <span id="auto-dlg-title">新建任务</span></h3>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-automation">✕</button>
+ </div>
+ <input type="hidden" id="auto-id">
+ <div class="form-row"><label>名称</label><input id="auto-name" placeholder="如:每天9点启动demo"></div>
+ <h4 style="margin:14px 0 6px;font-size:13px;">触发条件</h4>
+ <div class="form-row"><label>类型</label>
+ <select id="auto-trigger-type">
+ <option value="cron">定时(cron)</option>
+ <option value="once">单次定时</option>
+ <option value="event">事件触发</option>
+ </select>
+ </div>
+ <div id="auto-cron-row" class="form-row"><label>Cron 表达式</label><input id="auto-cron" placeholder="分 时 日 月 周 (如 0 9 * * * = 每天9点)"><span id="auto-cron-hint" style="font-size:10px;color:var(--text-muted);margin-left:8px;"></span></div>
+ <div id="auto-once-row" class="form-row" style="display:none;"><label>执行时间</label><input id="auto-once" type="datetime-local" step="1"></div>
+ <div id="auto-event-row" class="form-row" style="display:none;"><label>事件</label>
+ <select id="auto-event"><option value="profile:launched">profile 启动</option><option value="profile:exited">profile 退出</option></select>
+ </div>
+ <div id="auto-event-filter-row" class="form-row" style="display:none;"><label>限定 profile(可选)</label><select id="auto-event-profile"><option value="">(所有 profile)</option></select></div>
+ <h4 style="margin:14px 0 6px;font-size:13px;">执行动作</h4>
+ <div class="form-row"><label>动作</label>
+ <select id="auto-action-type">
+ <option value="launch-profile">启动 profile</option>
+ <option value="stop-profile">停止 profile</option>
+ <option value="agent-task">跑 Agent 任务</option>
+ <option value="sync-push">同步到 S3 (Push)</option>
+ <option value="sync-pull">从 S3 拉取 (Pull)</option>
+ <option value="custom-js">自定义 JS</option>
+ </select>
+ </div>
+ <div id="auto-action-profile-row" class="form-row"><label>Profile</label><select id="auto-action-profile"><option value="">(选择)</option></select></div>
+ <div id="auto-action-template-row" class="form-row" style="display:none;"><label>任务模板</label><select id="auto-action-template"><option value="">(不使用模板)</option></select><div id="auto-template-hint" style="font-size:10px;color:var(--text-muted);margin-top:4px;"></div></div>
+ <div id="auto-action-prompt-row" class="form-row" style="display:none;"><label>Agent Prompt</label><textarea id="auto-action-prompt" rows="3" placeholder="如:打开 example.com 截图保存"></textarea></div>
+ <div id="auto-action-js-row" class="form-row" style="display:none;"><label>JS 代码</label><textarea id="auto-action-js" rows="4" placeholder="在 main 进程执行,return 返回值" style="font-family:var(--mono);font-size:11px;"></textarea></div>
+ <div class="form-row"><label><input type="checkbox" id="auto-enabled" checked> 启用</label></div>
+ <div class="btn-row" style="margin-top:12px;">
+ <button type="submit" class="btn btn-primary btn-sm">保存</button>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-automation">取消</button>
+ </div>
+ </form>
+</dialog>
+
+<!-- Automation log detail dialog -->
+<dialog id="dlg-auto-log" class="dialog-wide">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+ <h3 style="margin:0;">📋 执行记录详情</h3>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-auto-log">✕</button>
+ </div>
+ <pre id="auto-log-detail" style="font-size:12px;max-height:400px;overflow:auto;background:var(--surface);padding:12px;border-radius:4px;white-space:pre-wrap;font-family:var(--mono);"></pre>
+</dialog>
+
+<!-- Automation job detail dialog -->
+<dialog id="dlg-auto-job" class="dialog-wide">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+ <h3 style="margin:0;">🧾 <span id="auto-job-title">Job 详情</span></h3>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-auto-job">✕</button>
+ </div>
+ <div id="auto-job-actions" style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:8px;"></div>
+ <pre id="auto-job-detail" style="font-size:12px;max-height:420px;overflow:auto;background:var(--surface);padding:12px;border-radius:4px;white-space:pre-wrap;font-family:var(--mono);"></pre>
+</dialog>
+
+<!-- Workflow editor dialog -->
+<dialog id="dlg-agent-run" class="dialog-wide">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+ <h3 style="margin:0;">🤖 <span id="agent-run-title">运行详情</span></h3>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-agent-run">✕</button>
+ </div>
+ <div id="agent-run-meta" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;"></div>
+ <h4 style="margin:8px 0 4px;font-size:13px;">🔀 变量</h4>
+ <div id="agent-run-vars" style="font-size:11px;margin-bottom:12px;max-height:120px;overflow-y:auto;"></div>
+ <h4 style="margin:8px 0 4px;font-size:13px;">📋 步骤时间线</h4>
+ <div id="agent-run-steps" style="max-height:360px;overflow-y:auto;"></div>
+</dialog>
+
+<!-- CloakBrowser fingerprint edit dialog -->
+<dialog id="dlg-cloak-seed">
+ <form method="dialog" data-role="submit" data-submit-cmd="saveCloakMeta">
+ <h3>🥷 CloakBrowser Profile — Fingerprint & Identity</h3>
+ <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+ <strong>--fingerprint=&lt;seed&gt;</strong> deterministically generates GPU, screen, hardware, canvas, audio, fonts.<br>
+ Same seed + platform + timezone + locale = 100% identical fingerprint.
+ </p>
+ <input type="hidden" id="cloak-meta-dir-id">
+ <!-- Name + Proxy -->
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+ <div class="form-row"><label>Profile Name *</label><input id="cloak-meta-name" placeholder="My Profile" required></div>
+ <div class="form-row"><label>Proxy</label><select id="cloak-meta-proxy"><option value="">(no proxy)</option></select></div>
+ </div>
+ <!-- Seed + Platform -->
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+ <div class="form-row"><label>Fingerprint Seed *</label>
+ <div style="display:flex;gap:4px;">
+ <input id="cloak-meta-seed" type="number" placeholder="e.g. 54321" min="1" max="999999" style="flex:1;" required>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="random-seed" data-cmd-target="cloak-meta-seed">🎲</button>
+ </div>
+ </div>
+ <div class="form-row"><label>Platform</label>
+ <select id="cloak-meta-platform">
+ <option value="windows">Windows</option>
+ <option value="macos">macOS</option>
+ </select>
+ </div>
+ </div>
+ <!-- Timezone + Locale -->
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+ <div class="form-row"><label>Timezone</label>
+ <select id="cloak-meta-timezone">
+ <option value="">🛰 Auto (match proxy exit IP)</option>
+ <option value="Asia/Shanghai">Asia/Shanghai (UTC+8)</option>
+ <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+ <option value="Asia/Seoul">Asia/Seoul (UTC+9)</option>
+ <option value="Asia/Singapore">Asia/Singapore (UTC+8)</option>
+ <option value="Asia/Hong_Kong">Asia/Hong_Kong (UTC+8)</option>
+ <option value="Asia/Dubai">Asia/Dubai (UTC+4)</option>
+ <option value="Asia/Kolkata">Asia/Kolkata (UTC+5:30)</option>
+ <option value="America/New_York">America/New_York (UTC-5)</option>
+ <option value="America/Chicago">America/Chicago (UTC-6)</option>
+ <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
+ <option value="America/Sao_Paulo">America/Sao_Paulo (UTC-3)</option>
+ <option value="Europe/London">Europe/London (UTC+0)</option>
+ <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
+ <option value="Europe/Berlin">Europe/Berlin (UTC+1)</option>
+ <option value="Europe/Moscow">Europe/Moscow (UTC+3)</option>
+ <option value="Pacific/Auckland">Pacific/Auckland (UTC+12)</option>
+ <option value="Australia/Sydney">Australia/Sydney (UTC+10)</option>
+ </select>
+ </div>
+ <div class="form-row"><label>Language / Locale</label>
+ <select id="cloak-meta-locale">
+ <option value="">🛰 Auto (match proxy exit IP)</option>
+ <option value="zh-CN">zh-CN (Chinese)</option>
+ <option value="zh-TW">zh-TW (Traditional Chinese)</option>
+ <option value="en-US">en-US (English US)</option>
+ <option value="en-GB">en-GB (English UK)</option>
+ <option value="ja-JP">ja-JP (Japanese)</option>
+ <option value="ko-KR">ko-KR (Korean)</option>
+ <option value="de-DE">de-DE (German)</option>
+ <option value="fr-FR">fr-FR (French)</option>
+ <option value="es-ES">es-ES (Spanish)</option>
+ <option value="pt-BR">pt-BR (Portuguese Brazil)</option>
+ <option value="ru-RU">ru-RU (Russian)</option>
+ <option value="ar-SA">ar-SA (Arabic)</option>
+ <option value="th-TH">th-TH (Thai)</option>
+ <option value="vi-VN">vi-VN (Vietnamese)</option>
+ </select>
+ </div>
+ </div>
+ <div class="form-row"><label>WebRTC IP</label>
+ <input id="cloak-meta-webrtc" placeholder="Leave empty for auto (proxy exit IP). Enter custom IP to override.">
+ </div>
+ <details style="margin-top:8px;">
+ <summary style="cursor:pointer;font-size:12px;color:var(--text);">Advanced hardware fingerprint</summary>
+ <p style="font-size:10px;color:var(--text-muted);margin:6px 0;">Leave empty to use seed-generated hardware. Explicit values are passed to CloakBrowser launch flags and help tune ping0.cc/env risk items.</p>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+ <div class="form-row"><label>GPU Vendor</label><input id="cloak-meta-gpu-vendor" placeholder="Google Inc. / Apple Inc."></div>
+ <div class="form-row"><label>GPU Renderer</label><input id="cloak-meta-gpu-renderer" placeholder="ANGLE (Intel UHD Graphics 620)"></div>
+ <div class="form-row"><label>CPU Cores</label><input id="cloak-meta-hardware-concurrency" type="number" min="1" max="64" placeholder="8"></div>
+ <div class="form-row"><label>Device Memory (GB)</label><input id="cloak-meta-device-memory" type="number" min="1" max="128" placeholder="8"></div>
+ <div class="form-row"><label>Screen Width</label><input id="cloak-meta-screen-width" type="number" min="320" max="10000" placeholder="1920"></div>
+ <div class="form-row"><label>Screen Height</label><input id="cloak-meta-screen-height" type="number" min="240" max="10000" placeholder="1080"></div>
+ <div class="form-row"><label>Storage Quota (MB)</label><input id="cloak-meta-storage-quota" type="number" min="1" max="1048576" placeholder="auto"></div>
+ <div class="form-row"><label>Taskbar Height</label><input id="cloak-meta-taskbar-height" type="number" min="0" max="500" placeholder="40"></div>
+ <div class="form-row" style="grid-column:1 / -1;"><label>Fonts Directory</label><input id="cloak-meta-fonts-dir" placeholder="Absolute path to custom fonts directory"></div>
+ </div>
+ </details>
+ <div class="btn-row">
+ <button type="submit" class="btn btn-primary btn-sm" data-i18n="common.save">Save</button>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-i18n="common.cancel">Cancel</button>
+ </div>
+ </form>
+</dialog>
+
+<!-- Firefox Profile Edit dialog -->
+
+
+<!-- S3 Download dialog -->
+
+
+<!-- ── First-run Wizard ── -->
+<dialog id="dlg-wizard" class="dialog-wide">
+ <h3 data-i18n="wizard.title">👋 Welcome to CloakLite</h3>
+ <p data-i18n="wizard.subtitle" style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Let's get your fingerprint browser ready in 3 quick steps.</p>
+
+ <div id="wizard-steps">
+  <div class="wizard-step" data-step="1">
+   <h4><span class="wizard-step-num">1</span> <span data-i18n="wizard.step1.title">Install CloakBrowser</span></h4>
+   <p style="font-size:11px;color:var(--text-muted);" data-i18n="wizard.step1.desc">Downloads the open-source Chromium binary used by all profiles. Roughly ~150 MB. One-time download.</p>
+   <div id="wizard-step1-status" class="wizard-status" style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
+   <div class="btn-row">
+    <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="wizardInstallBinary" data-i18n="wizard.step1.install">Install Now</button>
+   </div>
+  </div>
+
+  <div class="wizard-step" data-step="2" style="opacity:0.45;">
+   <h4><span class="wizard-step-num">2</span> <span data-i18n="wizard.step2.title">Create your first profile</span></h4>
+   <p style="font-size:11px;color:var(--text-muted);" data-i18n="wizard.step2.desc">A profile bundles a fingerprint seed, optional proxy, and isolated browser storage.</p>
+   <div class="form-row" style="margin-top:6px;">
+    <label data-i18n="wizard.step2.field.name">Profile Name</label>
+    <input id="wizard-profile-name" placeholder="My First Profile" disabled>
+   </div>
+   <div class="btn-row">
+    <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="wizardCreateProfile" data-i18n="wizard.step2.create" disabled>Create Profile</button>
+   </div>
+  </div>
+
+  <div class="wizard-step" data-step="3" style="opacity:0.45;">
+   <h4><span class="wizard-step-num">3</span> <span data-i18n="wizard.step3.title">Launch &amp; check fingerprint</span></h4>
+   <p style="font-size:11px;color:var(--text-muted);" data-i18n="wizard.step3.desc">Starts the profile and opens ping0.cc/env so you can verify fingerprint isolation.</p>
+   <div class="btn-row">
+    <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="wizardLaunchAndCheck" data-i18n="wizard.step3.launch" disabled>Launch &amp; Check</button>
+   </div>
+  </div>
+ </div>
+
+ <div class="btn-row" style="margin-top:18px;border-top:1px solid var(--border);padding-top:10px;">
+  <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="wizardSkip" data-i18n="wizard.skip">Skip for now</button>
+  <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="wizardNeverShow" data-i18n="wizard.never">Don't show again</button>
+ </div>
+</dialog>
+
+<script src="js/vendor/marked.min.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/app/core.js"></script>
+<script src="js/app/tabs.js"></script>
+<script src="js/app/profiles.js"></script>
+<script src="js/app/proxies.js"></script>
+<script src="js/app/extensions.js"></script>
+<script src="js/app/cookies.js"></script>
+<script src="js/app/sync.js"></script>
+<script src="js/app/browser.js"></script>
+<script src="js/app/accounts.js"></script>
+<script src="js/app/agent-chat.js"></script>
+<script src="js/app/agent-config.js"></script>
+<script src="js/app/agent-skills.js"></script>
+<script src="js/app/wizard.js"></script>
+<script src="js/app/automation.js"></script>
+<script src="js/app/runs.js"></script>
+<script src="js/app/db.js"></script>
+<script src="js/app/approval.js"></script>
+<script src="js/app/activity.js"></script>
+<script src="js/app/delegation.js"></script>
+<script src="js/app/init.js"></script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+// Audit log — append-only record of sensitive operations (profile launch/stop,
+// credential/proxy/fingerprint changes, sync, automation runs, agent dangerous
+// tools). Answers "who did what to which asset, when" — the team-governance
+// gap the scenario eval flagged. Stored as JSONL in the app data dir, ring-
+// buffered to CAP entries. No Electron deps beyond getAppDataDir → unit-testable.
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { getAppDataDir } from "./config-manager.js";
+
+export interface AuditEntry {
+  id: string;
+  at: number;
+  category: string;   // "profile" | "proxy" | "account" | "llm" | "sync" | "automation" | "agent" | "settings"
+  action: string;     // e.g. "launch", "stop", "delete", "save"
+  target?: string;    // e.g. dirId / proxy name / rule name
+  actor?: string;     // "user" | "automation:<ruleId>" | "agent:<runId>"
+  detail?: string;    // short human summary (no secrets)
+}
+
+const CAP = 2000;
+let _path: string | null = null;
+
+function logPath(): string {
+  if (!_path) _path = path.join(getAppDataDir(), "audit.log.jsonl");
+  return _path;
+}
+
+/** Override the log path (tests inject a temp file). */
+export function _setAuditPathForTesting(p: string | null): void {
+  _path = p;
+}
+
+let _seq = 0;
+function newId(): string {
+  _seq = (_seq + 1) % 1_000_000;
+  return `a_${Date.now().toString(36)}_${_seq.toString(36)}`;
+}
+
+/** Append an audit entry. Safe to call from hot paths — best-effort, never throws. */
+export function recordAudit(entry: Omit<AuditEntry, "id" | "at"> & { at?: number }): void {
+  try {
+    const full: AuditEntry = { id: newId(), at: entry.at ?? Date.now(), ...entry };
+    const line = JSON.stringify(full) + "\n";
+    const p = logPath();
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.appendFileSync(p, line, { encoding: "utf-8" });
+    // Ring-buffer: trim if the file grew past CAP lines (cheap-ish, amortized).
+    trimIfNeeded(p);
+  } catch {
+    /* never let auditing crash the operation it records */
+  }
+}
+
+let _trimCounter = 0;
+function trimIfNeeded(p: string): void {
+  // Only check every ~50 appends to avoid stat'ing on every write.
+  if ((_trimCounter++ % 50) !== 0) return;
+  try {
+    const stat = fs.statSync(p);
+    if (stat.size < 512 * 1024) return; // < 512KB, leave it
+    const lines = fs.readFileSync(p, "utf-8").split("\n").filter(Boolean);
+    const keep = lines.slice(lines.length - CAP);
+    const tmp = p + ".tmp";
+    fs.writeFileSync(tmp, keep.join("\n") + "\n", { encoding: "utf-8", mode: 0o600 });
+    fs.renameSync(tmp, p);
+  } catch { /* ignore */ }
+}
+
+/** Read recent audit entries (newest first). */
+export function listAudit(limit = 200, opts?: { category?: string; target?: string }): AuditEntry[] {
+  try {
+    const p = logPath();
+    if (!fs.existsSync(p)) return [];
+    const lines = fs.readFileSync(p, "utf-8").split("\n").filter(Boolean);
+    let entries: AuditEntry[] = [];
+    for (const line of lines) {
+      try { entries.push(JSON.parse(line)); } catch { /* skip malformed */ }
+    }
+    if (opts?.category) entries = entries.filter((e) => e.category === opts.category);
+    if (opts?.target) entries = entries.filter((e) => e.target === opts.target);
+    entries.sort((a, b) => b.at - a.at);
+    return entries.slice(0, Math.max(0, Math.min(limit, 2000)));
+  } catch {
+    return [];
+  }
+}
+
+/** Clear the audit log (admin action). */
+export function clearAudit(): void {
+  try {
+    const p = logPath();
+    if (fs.existsSync(p)) fs.writeFileSync(p, "", { encoding: "utf-8", mode: 0o600 });
+  } catch { /* ignore */ }
+}

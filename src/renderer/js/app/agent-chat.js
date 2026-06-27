@@ -1,0 +1,268 @@
+(function() {
+  "use strict";
+
+  var cloak = window.cloak;
+  var api = cloak.api;
+  var R = cloak.R;
+  var state = cloak.state;
+  var helpers = cloak.helpers;
+  var toast = helpers.toast;
+  var esc = helpers.esc;
+  var escAttr = helpers.escAttr;
+  var fmt = helpers.fmt;
+  var shortPath = helpers.shortPath;
+  var renderChatMarkdown = helpers.renderChatMarkdown;
+  var renderInlineMarkdown = helpers.renderInlineMarkdown;
+  var safeCodeLanguage = helpers.safeCodeLanguage;
+  var hardwareSummary = helpers.hardwareSummary;
+  var shortenGpu = helpers.shortenGpu;
+  var fingerprintCompleteness = helpers.fingerprintCompleteness;
+  var platformIcon = helpers.platformIcon;
+  var parseTagInput = helpers.parseTagInput;
+  var parseListInput = helpers.parseListInput;
+  var closeDialogIfOpen = helpers.closeDialogIfOpen;
+  var clearSkillEditor = helpers.clearSkillEditor;
+  var refreshSkillViews = helpers.refreshSkillViews;
+  var skillSourceLabel = helpers.skillSourceLabel;
+  var renderSkillTags = helpers.renderSkillTags;
+  var renderSkillCard = helpers.renderSkillCard;
+  var bindSkillCardActions = helpers.bindSkillCardActions;
+  var readHardwareFields = helpers.readHardwareFields;
+  var writeHardwareFields = helpers.writeHardwareFields;
+  var renderProxyOptions = helpers.renderProxyOptions;
+  var proxySelectionValue = helpers.proxySelectionValue;
+  var profileProxySelectionValue = helpers.profileProxySelectionValue;
+  var proxyDisplayLabel = helpers.proxyDisplayLabel;
+  var parseProxySelection = helpers.parseProxySelection;
+  var extractChromeExtensionId = helpers.extractChromeExtensionId;
+  var getSyncStatus = helpers.getSyncStatus;
+  var markProfileRuntime = helpers.markProfileRuntime;
+  var clearProfileRuntime = helpers.clearProfileRuntime;
+  var scheduleProfilesRefresh = helpers.scheduleProfilesRefresh;
+  var getBrowserDisplay = helpers.getBrowserDisplay;
+  var chromeOsFromPlatform = helpers.chromeOsFromPlatform;
+  var uaPlatformFromPlatform = helpers.uaPlatformFromPlatform;
+  var platformFromOsName = helpers.platformFromOsName;
+  var normalizeCloakPlatform = helpers.normalizeCloakPlatform;
+  var updateCloakStatus = helpers.updateCloakStatus;
+  var renderCloakBinaryCard = helpers.renderCloakBinaryCard;
+  // Sub-view switcher (chat, config, accounts, skills)
+  cloak.switchAgentSub = function(view) {
+    document.getElementById('agent-view-chat').style.display = (view === 'chat') ? 'flex' : 'none';
+    document.getElementById('agent-view-config').style.display = (view === 'config') ? 'block' : 'none';
+    document.getElementById('agent-view-accounts').style.display = (view === 'accounts') ? 'block' : 'none';
+    document.getElementById('agent-view-skills').style.display = (view === 'skills') ? 'block' : 'none';
+    if (view === 'accounts') cloak.agentLoadAccounts();
+    if (view === 'skills') cloak.agentLoadSkills();
+    if (view === 'config') cloak.agentLoadConfig();
+    if (view === 'chat') cloak.agentLoadConversations();
+  };
+
+  // ── Conversation List ──
+  cloak.agentLoadConversations = function() {
+    R.agent.conversations.list().then(function(list) {
+      var el = document.getElementById('agent-conv-list');
+      if (!list || list.length === 0) {
+        el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;text-align:center;padding:16px;">No chats yet</div>';
+        cloak.agentNewConv();
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < list.length; i++) {
+        var c = list[i];
+        var isActive = c.id === state.agentActiveConvId;
+        html += '<div data-role="cmd" data-cmd="agentSelectConv" data-cmd-arg="' + escAttr(c.id) + '" class="agent-conv-item" style="padding:10px 12px;cursor:pointer;' + (isActive ? 'background:var(--primary-bg);' : '') + '">';
+        html += '<div style="font-weight:500;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(c.title || 'New Chat') + '</div>';
+        html += '<div style="color:var(--text-muted);font-size:10px;margin-top:2px;">' + (c.messageCount || 0) + ' msgs</div>';
+        html += '</div>';
+      }
+      el.innerHTML = html;
+      if (!state.agentActiveConvId && list.length > 0) {
+        cloak.agentSelectConv(list[0].id);
+      }
+    }).catch(function(e) {
+      console.error('Load conversations:', e);
+      document.getElementById('agent-conv-list').innerHTML = '<div style="color:var(--danger);font-size:11px;text-align:center;padding:16px;">Failed to load conversations<br><button class="btn btn-xs btn-primary" data-role="cmd" data-cmd="agentLoadConversations" style="margin-top:8px;">Retry</button></div>';
+    });
+  };
+
+  cloak.agentNewConv = function() {
+    R.agent.conversations.create().then(function(c) {
+      state.agentActiveConvId = c.id;
+      state.agentMessages = [];
+      document.getElementById('agent-chat-title').textContent = c.title || 'New Chat';
+      document.getElementById('agent-chat-messages').innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">✨</div><div class="chat-empty-title">New conversation</div><div class="chat-empty-hint">Ask me anything!</div></div>';
+      document.getElementById('agent-chat-status').textContent = '';
+      cloak.agentLoadConversations();
+    }).catch(function(e) { toast('Failed to create conversation: ' + e.message, 'error'); });
+  };
+
+  cloak.agentSelectConv = function(convId) {
+    R.agent.conversations.get(convId).then(function(conv) {
+      if (!conv) return;
+      state.agentActiveConvId = convId;
+      state.agentMessages = conv.messages || [];
+      document.getElementById('agent-chat-title').textContent = conv.title || 'New Chat';
+      cloak.agentRenderMessages();
+      cloak.agentLoadConversations();
+    }).catch(function(e) { console.error('Load conversation:', e); });
+  };
+
+  cloak.agentDeleteConv = function() {
+    if (!state.agentActiveConvId) return;
+    if (!confirm('Delete this conversation? All messages will be lost.')) return;
+    R.agent.conversations.delete(state.agentActiveConvId).then(function() {
+      state.agentActiveConvId = null;
+      state.agentMessages = [];
+      document.getElementById('agent-chat-messages').innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">💬</div><div class="chat-empty-title">No conversation selected</div><div class="chat-empty-hint">Select one from the sidebar or create a new one</div></div>';
+      cloak.agentLoadConversations();
+    });
+  };
+
+  // ── Chat ──
+  cloak.agentSend = function() {
+    var input = document.getElementById('agent-chat-input');
+    var msg = input.value.trim();
+    if (!msg) return;
+    if (!state.agentActiveConvId) {
+      // Create conversation first
+      R.agent.conversations.create(msg.slice(0, 40)).then(function(c) {
+        state.agentActiveConvId = c.id;
+        cloak.agentLoadConversations();
+        cloak._doAgentSend(msg);
+      });
+      return;
+    }
+    cloak._doAgentSend(msg);
+  };
+
+  cloak._doAgentSend = function(msg) {
+    var input = document.getElementById('agent-chat-input');
+    input.value = '';
+    input.disabled = true;
+    var statusEl = document.getElementById('agent-chat-status');
+    statusEl.textContent = 'Thinking...';
+    var sendBtn = document.querySelector('#agent-view-chat .btn-primary');
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '...'; }
+
+    // Add user message locally for immediate display
+    state.agentMessages.push({ role: 'user', content: msg, timestamp: Date.now() });
+    cloak.agentRenderMessages();
+
+    // Streaming assistant message placeholder
+    var assistantIdx = state.agentMessages.length;
+    state.agentMessages.push({ role: 'assistant', content: '', timestamp: Date.now() });
+    cloak.agentRenderMessages();
+
+    var lastToolCalls = [];
+    var finalReply = '';
+    var gotDone = false;
+
+    var onChunk = function(payload) {
+      // Main process sends { text }; also tolerate a bare string for safety.
+      var text = (payload && typeof payload === 'object') ? payload.text : payload;
+      if (text == null) text = '';
+      finalReply += String(text);
+      state.agentMessages[assistantIdx].content = finalReply;
+      cloak.agentRenderMessages();
+    };
+    var onToolCall = function(tc) {
+      lastToolCalls.push(tc);
+      // Maintain both the redacted toolCalls (persisted) and a live steps log
+      // (rendered with order + arg summary + a "running" indicator).
+      state.agentMessages[assistantIdx].toolCalls = lastToolCalls.map(function(t) { return { name: t.name, redacted: true }; });
+      var steps = state.agentMessages[assistantIdx].steps || [];
+      var argSummary = '';
+      try { argSummary = tc.arguments ? JSON.stringify(JSON.parse(tc.arguments)) : ''; } catch (e) { argSummary = String(tc.arguments || ''); }
+      if (argSummary.length > 120) argSummary = argSummary.slice(0, 120) + '…';
+      steps.push({ name: tc.name, args: argSummary, at: Date.now(), done: false });
+      state.agentMessages[assistantIdx].steps = steps;
+      cloak.agentRenderMessages();
+    };
+    var onDone = function() {
+      gotDone = true;
+      // Mark every step as finished so spinners become checkmarks.
+      var steps = state.agentMessages[assistantIdx] && state.agentMessages[assistantIdx].steps;
+      if (steps) for (var k = 0; k < steps.length; k++) steps[k].done = true;
+      cloak.agentRenderMessages();
+      cleanup();
+    };
+    // Normalize an error payload to a human string. The main process sends
+    // { error: "..." }; ipc may also wrap in Error or pass a bare object.
+    // Without this, '❌ ' + { error: '...' } renders as "❌ [object Object]".
+    var explainError = function(err) {
+      if (err == null) return '';
+      if (typeof err === 'string') return err;
+      if (err.message) return String(err.message);
+      if (typeof err.error === 'string') return err.error;
+      if (err.error && err.error.message) return String(err.error.message);
+      try { return JSON.stringify(err); } catch (e) { return String(err); }
+    };
+    var onError = function(err) {
+      if (!gotDone) {
+        var why = explainError(err) || 'Stream error';
+        console.error('[agent] stream error:', err);
+        state.agentMessages[assistantIdx].content = finalReply || ('❌ ' + why);
+        cloak.agentRenderMessages();
+      }
+      cleanup();
+    };
+    var cleanup = function() {
+      statusEl.textContent = '';
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '↑'; }
+      input.disabled = false;
+      input.focus();
+      cloak.agentRenderMessages({ scrollOnly: true });
+      cloak.agentLoadConversations();
+    };
+
+    // Subscribe to stream events
+    api.on('agent:stream-chunk', onChunk);
+    api.on('agent:stream-tool-call', onToolCall);
+    api.on('agent:stream-done', onDone);
+    api.on('agent:stream-error', onError);
+
+    R.agent.chatStream(state.agentActiveConvId, msg).then(function(r) {
+      // Main response handler — fires after stream completes
+    }).catch(function(e) {
+      if (!gotDone) {
+        onError(e.message || String(e));
+      }
+      // Unsubscribe
+      api.removeListener('agent:stream-chunk', onChunk);
+      api.removeListener('agent:stream-tool-call', onToolCall);
+      api.removeListener('agent:stream-done', onDone);
+      api.removeListener('agent:stream-error', onError);
+    });
+  };
+
+  cloak.agentRenderMessages = function() {
+    var el = document.getElementById('agent-chat-messages');
+    var html = '';
+    for (var i = 0; i < state.agentMessages.length; i++) {
+      var m = state.agentMessages[i];
+      if (m.role === 'user') {
+        html += '<div class="chat-msg chat-msg-user"><div class="chat-bubble chat-bubble-user">' + esc(m.content) + '</div></div>';
+      } else if (m.role === 'assistant') {
+        html += '<div class="chat-msg chat-msg-agent"><div class="chat-bubble chat-bubble-agent">' + renderChatMarkdown(m.content) + '</div></div>';
+        // Execution steps: ordered list of tool calls with arg summaries.
+        var steps = m.steps || m.toolCalls || [];
+        if (steps.length > 0) {
+          html += '<div class="chat-tools">';
+          for (var j = 0; j < steps.length; j++) {
+            var s = steps[j];
+            var label = s.name || (s.toolCalls && s.toolCalls.name) || 'tool';
+            var argInfo = s.args ? '<span class="chat-tool-args"> ' + esc(s.args) + '</span>' : '';
+            var spinner = s.done === false ? '<span class="chat-tool-spinner">●</span>' : '<span class="chat-tool-done">✓</span>';
+            html += '<div class="chat-tool-step"><span class="chat-tool-num">' + (j + 1) + '.</span> ' + spinner + ' <span class="chat-tool-chip">' + esc(label) + '</span>' + argInfo + '</div>';
+          }
+          html += '</div>';
+        }
+      } else if (m.role === 'tool') {
+        html += '<div style="padding:0 12px 4px;font-size:10px;color:var(--text-muted);">↳ ' + esc(m.content).slice(0, 160) + '</div>';
+      }
+    }
+    el.innerHTML = html || '<div class="chat-empty"><div class="chat-empty-icon">💬</div><div class="chat-empty-title">Start a conversation</div><div class="chat-empty-hint">Type a message below to begin</div></div>';
+    el.scrollTop = el.scrollHeight;
+  };
+})();
