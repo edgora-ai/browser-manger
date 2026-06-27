@@ -134,6 +134,19 @@ Read before use:
 
 ---
 
+## Known Limitations
+
+| Area | Current state |
+|---|---|
+| Platform support | macOS on Apple Silicon is supported out of the box. Windows/Linux cross-platform code paths exist but are not yet fully verified end-to-end. |
+| i18n | zh-CN and en-US are supported with runtime switching. The core UI, sidebar, wizard, and tray are translated; some generated strings in Automation/Runs/Activity/DB/Approval still fall back to Chinese. |
+| Agent chat streaming | Live token streaming is supported for OpenAI-compatible and Claude providers. Tool-call metadata is emitted after each tool-call block completes; tool execution blocks the next streaming round. |
+| Onboarding wizard | A 4-step first-run wizard (install binary → create profile → launch + risk check → optional AI config) appears when no binary or profiles exist. |
+| Renderer architecture | The renderer is modular vanilla JS loaded by script tags; it is not bundled. Some modules remain large and rely on a shared global namespace. |
+| E2E tests | Unit/smoke tests run in CI. E2E (Playwright Electron) journeys require a real Electron environment and a CloakBrowser binary, so they are not all run in CI yet. |
+
+---
+
 ## Testing and Release Checklist
 
 Before publishing or sharing a build:

@@ -30,12 +30,14 @@ npm test
 
 ## 2. First Run
 
-1. Open the **CloakBrowser** tab.
-2. Click **Install** to download or configure the CloakBrowser binary.
-3. Open **Profiles**.
-4. Click **New Profile** and choose profile settings such as name, platform, timezone, locale, screen, hardware, WebRTC, and storage settings.
-5. Click **Launch** to open the profile.
-6. Use **Check Risk** to verify the browser environment.
+On first launch, if no CloakBrowser binary and no profiles exist, a 4-step wizard appears:
+
+1. **Install CloakBrowser** — download/configure the binary.
+2. **Create your first profile** — set name, platform, timezone, locale, hardware, WebRTC.
+3. **Launch & check fingerprint** — start the profile and open a risk-check page.
+4. **Configure AI Agent (optional)** — jump to the Agent config view to wire up an LLM provider.
+
+"Skip for now" hides the wizard only for this session; "Don't show again" persists dismissal. You can also run these steps manually from the tabs at any time.
 
 ## 3. Profile Management
 
@@ -121,6 +123,8 @@ Open **Agent** to configure an LLM provider and run tool-calling browser automat
 
 Security notes:
 
+- Responses stream token-by-token into the chat view (OpenAI-compatible and Claude providers).
+- Each send is correlated by a stream id, so concurrent or stale sends do not overwrite the wrong assistant bubble.
 - HTTP requests block local/private/link-local/CGNAT targets.
 - HTTP write methods require approval.
 - Tool traces redact request/response bodies and variable values.
