@@ -155,8 +155,9 @@
       })();
       if (r && r.success) {
         statusEl.innerHTML = '<span style="color:var(--success);">✓ ' + (window.i18n ? window.i18n.t('wizard.step3.done', 'Launched & navigating to ping0.cc') : 'Launched & navigating to ping0.cc') + '</span>';
-        setTimeout(function() { document.getElementById('dlg-wizard').close(); dismissWizard(); }, 2000);
         scheduleProfilesRefresh();
+        // Advance to the optional AI configuration step instead of auto-closing.
+        advanceWizardStep(3);
       } else {
         statusEl.innerHTML = '<span style="color:var(--danger);">✗ ' + ((r && r.error) || (window.i18n ? window.i18n.t('wizard.step3.failed', 'Launch failed') : 'Launch failed')) + '</span>';
         if (btn) btn.disabled = false;
@@ -190,7 +191,10 @@
 
   cloak.wizardSkip = function() {
     document.getElementById('dlg-wizard').close();
-    dismissWizard();
+    // "Skip for now" only hides the wizard for the current session — it does
+    // NOT persist dismissal, so the wizard can reappear on the next app launch
+    // if the first-run conditions (no binary / no profiles) still hold.
+    window.wizardDismissed = true;
   };
 
   cloak.wizardNeverShow = function() {
@@ -200,13 +204,20 @@
   };
 
   function dismissWizard() {
+    // Used internally after a completed wizard run: hide for this session only.
+    // Persisting dismissal would be wrong here — a completed onboarding should
+    // not suppress a future re-onboarding if the user wipes their profiles.
     window.wizardDismissed = true;
-    try {
-      if (!localStorage.getItem('cloak-wizard-dismissed')) {
-        localStorage.setItem('cloak-wizard-dismissed', '1');
-      }
-    } catch (e) { /* ok */ }
   }
+
+  // Step 4 (optional): jump to the Agent config view so the user can wire up
+  // an LLM provider after their first profile is ready.
+  cloak.wizardConfigureAgent = function() {
+    document.getElementById('dlg-wizard').close();
+    window.wizardDismissed = true;
+    try { cloak.switchTab('agent'); } catch (e) { /* ignore */ }
+    try { cloak.switchAgentSub('config'); } catch (e) { /* ignore */ }
+  };
 
   cloak.maybeShowWizard = maybeShowWizard;
   cloak.showWizard = showWizard;
