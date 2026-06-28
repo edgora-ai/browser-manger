@@ -35,6 +35,20 @@ Do **not** use CloakLite for fraud, spam, credential attacks, unauthorized scrap
 
 ---
 
+## Screenshots
+
+| Profiles | Agent |
+|---|---|
+| ![Profiles](docs/screenshots/profiles.png) | ![Agent Chat](docs/screenshots/agent-chat.png) |
+| **Wizard** | **Sync** |
+| ![Wizard](docs/screenshots/wizard.png) | ![Sync](docs/screenshots/sync.png) |
+| **Automation** | **Activity** |
+| ![Automation](docs/screenshots/automation.png) | ![Activity](docs/screenshots/activity.png) |
+| **Runs** | **Proxy** |
+| ![Runs](docs/screenshots/runs.png) | ![Proxy](docs/screenshots/proxy.png) |
+
+---
+
 ## Quick Start
 
 ### Requirements
