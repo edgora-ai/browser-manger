@@ -8,22 +8,24 @@
   var esc = helpers.esc;
   var escAttr = helpers.escAttr;
 
+  function t(key, fallback) { return window.i18n ? window.i18n.t(key, fallback) : fallback; }
+
   var currentRules = [];
   var taskTemplates = [];
 
-  function describeTrigger(t) {
+  function describeTrigger(tr) {
     if (!t) return '?';
-    if (t.type === 'cron') {
-      var hint = cronHint(t.cron);
-      return '定时 <code style="font-family:var(--mono)">' + esc(t.cron || '') + '</code>' + (hint ? ' <span style="color:var(--text-muted)">(' + esc(hint) + ')</span>' : '');
+    if (tr.type === 'cron') {
+      var hint = cronHint(tr.cron);
+      return t('auto.trigger.cron', '定时 ') + '<code style="font-family:var(--mono)">' + esc(tr.cron || '') + '</code>' + (hint ? ' <span style="color:var(--text-muted)">(' + esc(hint) + ')</span>' : '');
     }
-    if (t.type === 'once') return '单次 ' + (t.at ? new Date(t.at).toLocaleString() : '?');
-    if (t.type === 'event') return '事件 ' + esc(t.event || '').replace('profile:','') + (t.profileFilter ? ' (' + esc(t.profileFilter).slice(0,8) + ')' : ' (所有)');
+    if (tr.type === 'once') return t('auto.trigger.once', '单次 ') + (tr.at ? new Date(tr.at).toLocaleString() : '?');
+    if (tr.type === 'event') return t('auto.trigger.event', '事件 ') + esc(tr.event || '').replace('profile:','') + (tr.profileFilter ? ' (' + esc(tr.profileFilter).slice(0,8) + ')' : t('auto.trigger.event.all', ' (所有)'));
     return '?';
   }
   function describeAction(a) {
     if (!a) return '?';
-    var map = { 'launch-profile':'🚀 启动', 'stop-profile':'⏹ 停止', 'agent-task':'🤖 Agent', 'sync-push':'☁️ Push', 'sync-pull':'☁️ Pull', 'custom-js':'⚙️ JS' };
+    var map = { 'launch-profile': t('auto.action.launch','🚀 启动'), 'stop-profile': t('auto.action.stop','⏹ 停止'), 'agent-task': t('auto.action.agent','🤖 Agent'), 'sync-push': t('auto.action.push','☁️ Push'), 'sync-pull': t('auto.action.pull','☁️ Pull'), 'custom-js': t('auto.action.js','⚙️ JS') };
     var base = map[a.type] || a.type;
     if (a.profileDirId) base += ' ' + esc(a.profileDirId).slice(0,10);
     if (a.type === 'agent-task' && a.agentPrompt) base += ' <em style="color:var(--text-muted)">"' + esc(a.agentPrompt).slice(0,30) + '..."</em>';
@@ -33,18 +35,18 @@
     if (!c) return '';
     var p = c.trim().split(/\s+/);
     if (p.length !== 5) return '';
-    if (p[0]==='0' && p[1] && p[2]==='*' && p[3]==='*' && p[4]==='*') return '每天 '+p[1]+':00';
-    if (/^\*\//.test(p[0]) && p[1]==='*' && p[2]==='*' && p[3]==='*' && p[4]==='*') return '每 '+p[0].slice(2)+' 分钟';
-    if (p[1]==='*' && p[2]==='*' && p[3]==='*' && p[4]==='*') return '每小时 '+p[0]+' 分';
+    if (p[0]==='0' && p[1] && p[2]==='*' && p[3]==='*' && p[4]==='*') return t('auto.cron.daily','每天 ')+p[1]+':00';
+    if (/^\*\//.test(p[0]) && p[1]==='*' && p[2]==='*' && p[3]==='*' && p[4]==='*') return t('auto.cron.every-min','每 ')+p[0].slice(2)+t('auto.cron.every-min-unit',' 分钟');
+    if (p[1]==='*' && p[2]==='*' && p[3]==='*' && p[4]==='*') return t('auto.cron.every-hour','每小时 ')+p[0]+t('auto.cron.every-hour-unit',' 分');
     return '';
   }
 
-  var JOB_STATUS_LABEL = { queued: '排队', running: '运行中', done: '完成', failed: '失败', skipped: '跳过', cancelled: '已取消' };
   var JOB_STATUS_CLS = { queued: 'status-stopped', running: 'status-running', done: 'status-done', failed: 'status-stopped', skipped: 'status-stopped', cancelled: 'status-stopped' };
 
   function jobStatusBadge(job) {
     var cls = JOB_STATUS_CLS[job.status] || 'status-stopped';
-    return '<span class="status-badge ' + cls + '">' + esc(JOB_STATUS_LABEL[job.status] || job.status || '?') + '</span>';
+    var label = t('auto.status.' + (job.status || ''), job.status || '?');
+    return '<span class="status-badge ' + cls + '">' + esc(label) + '</span>';
   }
 
   function fmtJobTime(value) {
@@ -62,7 +64,7 @@
 
   function jobSummary(job) {
     var text = job.error || job.result || '';
-    return text ? String(text).slice(0, 140) : '(无结果)';
+    return text ? String(text).slice(0, 140) : t('auto.no-result', '(无结果)');
   }
 
   function canCancelJob(job) {
@@ -90,7 +92,7 @@
     api.cloak.list().then(function(list) {
       var sel = document.getElementById(selId);
       var cur = sel.value;
-      sel.innerHTML = '<option value="">(选择 profile)</option>' + (list || []).map(function(p) {
+      sel.innerHTML = '<option value="">' + esc(t('auto.select-profile', '(选择 profile)')) + '</option>' + (list || []).map(function(p) {
         return '<option value="' + escAttr(p.dirId) + '"' + (p.dirId === selected ? ' selected' : '') + '>' + esc(p.name) + '</option>';
       }).join('');
       if (selected && !sel.value) sel.value = selected;
@@ -116,7 +118,7 @@
     var sel = document.getElementById('auto-action-template');
     if (!sel) return;
     var selected = sel.value;
-    sel.innerHTML = '<option value="">(不使用模板)</option>' + taskTemplates.map(function(t) {
+    sel.innerHTML = '<option value="">' + esc(t('auto.no-template', '(不使用模板)')) + '</option>' + taskTemplates.map(function(tpl) {
       return '<option value="' + escAttr(t.id) + '">' + esc(t.title) + ' · ' + esc(t.category) + ' · ' + esc(t.riskLevel) + '</option>';
     }).join('');
     if (selected) sel.value = selected;
@@ -125,22 +127,22 @@
   function templatePrompt(tpl) {
     if (!tpl) return '';
     var lines = [
-      '使用模板 ' + tpl.id + ' — ' + tpl.title,
+      t('auto.template-using', '使用模板 ') + tpl.id + t('auto.template-sep', ' — ') + tpl.title,
       '',
       tpl.prompt || tpl.examplePrompt || tpl.description || '',
     ];
     if (tpl.requiredInputs && tpl.requiredInputs.length) {
-      lines.push('', '必填输入:');
+      lines.push('', t('auto.template-required-inputs', '必填输入:'));
       (tpl.requiredInputs || []).forEach(function(input) {
-        lines.push('- ' + input.key + (input.required ? ' (required)' : ' (optional)') + ': ' + (input.description || '') + (input.example ? ' 示例: ' + input.example : ''));
+        lines.push('- ' + input.key + (input.required ? ' ' + t('auto.template-required', '(required)') : ' ' + t('auto.template-optional', '(optional)')) + ': ' + (input.description || '') + (input.example ? t('auto.template-example', ' 示例: ') + input.example : ''));
       });
     }
     if (tpl.steps && tpl.steps.length) {
-      lines.push('', '执行步骤:');
+      lines.push('', t('auto.template-steps', '执行步骤:'));
       (tpl.steps || []).forEach(function(step, index) { lines.push((index + 1) + '. ' + step); });
     }
     if (tpl.successCriteria && tpl.successCriteria.length) {
-      lines.push('', '成功标准:');
+      lines.push('', t('auto.template-criteria', '成功标准:'));
       (tpl.successCriteria || []).forEach(function(item) { lines.push('- ' + item); });
     }
     return lines.join('\n');
@@ -151,7 +153,7 @@
     var tpl = taskTemplates.find(function(t) { return t.id === id; });
     var hint = document.getElementById('auto-template-hint');
     if (!tpl) { hint.textContent = ''; return; }
-    hint.textContent = 'risk=' + tpl.riskLevel + ' · tools=' + (tpl.tools || []).join(', ') + ' · success=' + (tpl.successCriteria || []).slice(0, 2).join('; ');
+    hint.textContent = t('auto.hint-risk', 'risk=') + tpl.riskLevel + t('auto.hint-tools', ' · tools=') + (tpl.tools || []).join(', ') + t('auto.hint-success', ' · success=') + (tpl.successCriteria || []).slice(0, 2).join('; ');
     document.getElementById('auto-action-prompt').value = templatePrompt(tpl);
   }
 
@@ -160,20 +162,20 @@
       currentRules = rules || [];
       var el = document.getElementById('automation-list');
       if (!rules || rules.length === 0) {
-        el.innerHTML = '<div class="empty-state">还没有自动化任务。<br>点「+ 新建任务」创建,或让 Agent 帮你建(在 Agent 里说"每天9点启动demo")。</div>';
+        el.innerHTML = '<div class="empty-state">' + t('auto.empty-state', '还没有自动化任务。<br>点「+ 新建任务」创建,或让 Agent 帮你建(在 Agent 里说"每天9点启动demo")。') + '</div>';
       } else {
         el.innerHTML = rules.map(function(r) {
           return '<div class="profile-card" data-rule-id="' + escAttr(r.id) + '">' +
             '<div class="card-header"><span class="name">' + esc(r.name) + '</span>' +
-              '<span class="status-badge ' + (r.enabled ? 'status-running' : 'status-stopped') + '">' + (r.enabled ? '启用' : '停用') + '</span></div>' +
-            '<div class="info-row"><span>触发</span><span style="font-size:12px;">' + describeTrigger(r.trigger) + '</span></div>' +
-            '<div class="info-row"><span>动作</span><span style="font-size:12px;">' + describeAction(r.action) + '</span></div>' +
-            (r.lastRunAt ? '<div class="info-row"><span>上次</span><span style="font-size:11px;color:' + (r.lastResult && !r.lastResult.includes('error') && !r.lastResult.includes('failed') ? 'var(--success)' : 'var(--text-muted)') + ';">' + new Date(r.lastRunAt).toLocaleString() + '</span></div>' : '') +
+              '<span class="status-badge ' + (r.enabled ? 'status-running' : 'status-stopped') + '">' + esc(r.enabled ? t('auto.enabled','启用') : t('auto.disabled','停用')) + '</span></div>' +
+            '<div class="info-row"><span>' + esc(t('auto.row.trigger','触发')) + '</span><span style="font-size:12px;">' + describeTrigger(r.trigger) + '</span></div>' +
+            '<div class="info-row"><span>' + esc(t('auto.row.action','动作')) + '</span><span style="font-size:12px;">' + describeAction(r.action) + '</span></div>' +
+            (r.lastRunAt ? '<div class="info-row"><span>' + esc(t('auto.row.last','上次')) + '</span><span style="font-size:11px;color:' + (r.lastResult && !r.lastResult.includes('error') && !r.lastResult.includes('failed') ? 'var(--success)' : 'var(--text-muted)') + ';">' + new Date(r.lastRunAt).toLocaleString() + '</span></div>' : '') +
             '<div class="card-actions">' +
-              '<button class="btn btn-secondary btn-sm" data-rule-action="toggle">' + (r.enabled ? '停用' : '启用') + '</button>' +
-              '<button class="btn btn-secondary btn-sm" data-rule-action="test">测试运行</button>' +
-              '<button class="btn btn-secondary btn-sm" data-rule-action="edit">编辑</button>' +
-              '<button class="btn btn-danger btn-sm" data-rule-action="delete">删除</button>' +
+              '<button class="btn btn-secondary btn-sm" data-rule-action="toggle">' + esc(r.enabled ? t('auto.disabled','停用') : t('auto.enabled','启用')) + '</button>' +
+              '<button class="btn btn-secondary btn-sm" data-rule-action="test">' + esc(t('auto.btn.test','测试运行')) + '</button>' +
+              '<button class="btn btn-secondary btn-sm" data-rule-action="edit">' + esc(t('auto.btn.edit','编辑')) + '</button>' +
+              '<button class="btn btn-danger btn-sm" data-rule-action="delete">' + esc(t('auto.btn.delete','删除')) + '</button>' +
             '</div>' +
           '</div>';
         }).join('');
@@ -200,30 +202,30 @@
     if (!el) return;
     var statusEl = document.getElementById('automation-job-status');
     var status = statusEl && statusEl.value;
-    el.innerHTML = '<div class="loading">Loading...</div>';
+    el.innerHTML = '<div class="loading">' + esc(t('auto.loading', 'Loading...')) + '</div>';
     api.automation.jobs({ status: status || undefined, limit: 50 }).then(function(jobs) {
       if (!jobs || jobs.length === 0) {
-        el.innerHTML = '<div class="empty-state">还没有 durable jobs。<br>点击「测试运行」后会在这里看到执行记录。</div>';
+        el.innerHTML = '<div class="empty-state">' + t('auto.jobs.empty', '还没有 durable jobs。<br>点击「测试运行」后会在这里看到执行记录。') + '</div>';
         return;
       }
       el.innerHTML = jobs.map(function(job) {
         var summary = jobSummary(job);
         var runLink = job.runId
-          ? '<button class="btn btn-secondary btn-sm" data-job-action="open-run">打开 Run</button>'
+          ? '<button class="btn btn-secondary btn-sm" data-job-action="open-run">' + esc(t('auto.jobs.btn.open-run','打开 Run')) + '</button>'
           : '';
         var cancel = canCancelJob(job)
-          ? '<button class="btn btn-danger btn-sm" data-job-action="cancel">取消</button>'
+          ? '<button class="btn btn-danger btn-sm" data-job-action="cancel">' + esc(t('auto.jobs.btn.cancel','取消')) + '</button>'
           : '';
         return '<div class="profile-card" data-job-id="' + escAttr(job.id) + '">' +
           '<div class="card-header"><span class="name">' + esc(job.ruleName || job.ruleId || job.id) + '</span>' + jobStatusBadge(job) + '</div>' +
-          '<div class="info-row"><span>Job</span><span style="font-family:var(--mono);font-size:11px;">' + esc(job.id) + '</span></div>' +
-          '<div class="info-row"><span>来源</span><span>' + esc(job.source || '-') + ' · attempt ' + esc(job.attempt) + '</span></div>' +
-          '<div class="info-row"><span>创建</span><span>' + esc(fmtJobTime(job.createdAt)) + '</span></div>' +
-          '<div class="info-row"><span>耗时</span><span>' + esc(jobDuration(job)) + '</span></div>' +
-          (job.runId ? '<div class="info-row"><span>Run</span><span style="font-family:var(--mono);font-size:11px;">' + esc(job.runId) + '</span></div>' : '') +
+          '<div class="info-row"><span>' + esc(t('auto.jobs.row.job','Job')) + '</span><span style="font-family:var(--mono);font-size:11px;">' + esc(job.id) + '</span></div>' +
+          '<div class="info-row"><span>' + esc(t('auto.jobs.row.source','来源')) + '</span><span>' + esc(job.source || '-') + ' · attempt ' + esc(job.attempt) + '</span></div>' +
+          '<div class="info-row"><span>' + esc(t('auto.jobs.row.created','创建')) + '</span><span>' + esc(fmtJobTime(job.createdAt)) + '</span></div>' +
+          '<div class="info-row"><span>' + esc(t('auto.jobs.row.duration','耗时')) + '</span><span>' + esc(jobDuration(job)) + '</span></div>' +
+          (job.runId ? '<div class="info-row"><span>' + esc(t('auto.jobs.row.run','Run')) + '</span><span style="font-family:var(--mono);font-size:11px;">' + esc(job.runId) + '</span></div>' : '') +
           '<div style="font-size:11px;color:' + (job.error ? 'var(--danger)' : 'var(--text-muted)') + ';margin:6px 0;line-height:1.35;">' + esc(summary) + '</div>' +
           '<div class="card-actions">' +
-            '<button class="btn btn-secondary btn-sm" data-job-action="detail">详情</button>' +
+            '<button class="btn btn-secondary btn-sm" data-job-action="detail">' + esc(t('auto.jobs.row.summary','详情')) + '</button>' +
             runLink + cancel +
           '</div>' +
         '</div>';
@@ -239,39 +241,39 @@
         else if (btn.dataset.jobAction === 'cancel') cloak.automationCancelJob(jobId);
       };
     }).catch(function(e) {
-      el.innerHTML = '<div class="empty-state">加载 jobs 失败: ' + esc(e.message || e) + '</div>';
-      toast('加载 jobs 失败: ' + (e.message || e), 'error');
+      el.innerHTML = '<div class="empty-state">' + esc(t('auto.jobs.load-failed','加载 jobs 失败: ')) + esc(e.message || e) + '</div>';
+      toast(t('auto.jobs.load-failed','加载 jobs 失败: ') + (e.message || e), 'error');
     });
   };
 
   cloak.automationShowJob = function(jobId) {
     if (!jobId) return;
     api.automation.jobGet(jobId).then(function(job) {
-      if (!job) { toast('Job 不存在', 'error'); return; }
+      if (!job) { toast(t('auto.jobs.not-found','Job 不存在'), 'error'); return; }
       document.getElementById('auto-job-title').textContent = job.id;
       document.getElementById('auto-job-detail').textContent = jobDetailText(job);
       var actions = document.getElementById('auto-job-actions');
-      actions.innerHTML = (job.runId ? '<button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="runsOpen" data-cmd-arg="' + escAttr(job.runId) + '">打开关联 Run</button>' : '') +
-        (canCancelJob(job) ? '<button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="automationCancelJob" data-cmd-arg="' + escAttr(job.id) + '">取消 Job</button>' : '');
+      actions.innerHTML = (job.runId ? '<button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="runsOpen" data-cmd-arg="' + escAttr(job.runId) + '">' + esc(t('auto.jobs.open-run','打开关联 Run')) + '</button>' : '') +
+        (canCancelJob(job) ? '<button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="automationCancelJob" data-cmd-arg="' + escAttr(job.id) + '">' + esc(t('auto.jobs.cancel-job','取消 Job')) + '</button>' : '');
       document.getElementById('dlg-auto-job').showModal();
-    }).catch(function(e) { toast('加载 job 失败: ' + (e.message || e), 'error'); });
+    }).catch(function(e) { toast(t('auto.jobs.load-job-failed','加载 job 失败: ') + (e.message || e), 'error'); });
   };
 
   cloak.automationCancelJob = function(jobId) {
     if (!jobId) return;
-    if (!confirm('取消此 job? 已经开始的外部副作用不会回滚。')) return;
+    if (!confirm(t('auto.jobs.confirm-cancel','取消此 job? 已经开始的外部副作用不会回滚。'))) return;
     api.automation.jobCancel(jobId).then(function(r) {
-      toast(r && r.success ? '已取消 job' : '取消失败', r && r.success ? 'success' : 'error');
+      toast(r && r.success ? t('auto.jobs.cancelled','已取消 job') : t('auto.jobs.cancel-failed','取消失败'), r && r.success ? 'success' : 'error');
       var dlg = document.getElementById('dlg-auto-job');
       if (dlg && dlg.open) dlg.close();
       cloak.automationRefreshJobs();
-    }).catch(function(e) { toast('取消 job 失败: ' + (e.message || e), 'error'); });
+    }).catch(function(e) { toast(t('auto.jobs.cancel-error','取消 job 失败: ') + (e.message || e), 'error'); });
   };
 
   cloak.automationRefreshLogs = function() {
     api.automation.logs().then(function(logs) {
       var logEl = document.getElementById('automation-log');
-      if (!logs || logs.length === 0) { logEl.textContent = '(空)'; return; }
+      if (!logs || logs.length === 0) { logEl.textContent = t('auto.log.empty', '(空)'); return; }
       logEl.innerHTML = logs.slice(0, 50).map(function(l, i) {
         return '<div data-log-idx="' + i + '" style="padding:2px 0;cursor:pointer;border-bottom:1px solid var(--border-light);">' +
           '<span style="color:var(--text-muted);">' + new Date(l.at).toLocaleString() + '</span> ' +
@@ -288,16 +290,16 @@
 
   cloak.automationShowLogDetail = function(log) {
     if (!log) return;
-    var detail = '任务: ' + log.ruleName + ' (' + log.ruleId + ')\n' +
-      '时间: ' + new Date(log.at).toLocaleString() + '\n' +
-      '结果: ' + (log.ok ? '✅ 成功' : '❌ 失败') + '\n' +
-      '详情:\n' + log.result;
+    var detail = t('auto.log.task','任务: ') + log.ruleName + ' (' + log.ruleId + ')\n' +
+      t('auto.log.time','时间: ') + new Date(log.at).toLocaleString() + '\n' +
+      t('auto.log.result','结果: ') + (log.ok ? t('auto.log.success','✅ 成功') : t('auto.log.failure','❌ 失败')) + '\n' +
+      t('auto.log.detail','详情:\n') + log.result;
     document.getElementById('auto-log-detail').textContent = detail;
     document.getElementById('dlg-auto-log').showModal();
   };
 
   function openEditor(rule) {
-    document.getElementById('auto-dlg-title').textContent = rule ? '编辑任务' : '新建任务';
+    document.getElementById('auto-dlg-title').textContent = rule ? t('auto.editor.edit-title','编辑任务') : t('auto.editor.new-title','新建任务');
     document.getElementById('auto-id').value = rule ? rule.id : '';
     document.getElementById('auto-name').value = rule ? rule.name : '';
     var tt = rule ? rule.trigger.type : 'cron';
@@ -332,7 +334,7 @@
       var hintEl = document.getElementById('auto-cron-hint');
       if (!c) { hintEl.textContent = ''; return; }
       api.automation.validateCron(c).then(function(v) {
-        hintEl.textContent = v.valid ? (cronHint(c) || '✓ 有效') : ('✗ ' + v.error);
+        hintEl.textContent = v.valid ? (cronHint(c) || t('auto.cron.valid','✓ 有效')) : (t('auto.cron.invalid','✗ ') + v.error);
         hintEl.style.color = v.valid ? 'var(--success)' : 'var(--danger)';
       });
     };
@@ -358,7 +360,7 @@
     if (triggerType === 'cron') trigger.cron = document.getElementById('auto-cron').value.trim();
     else if (triggerType === 'once') {
       var at = new Date(document.getElementById('auto-once').value).getTime();
-      if (isNaN(at)) { toast('执行时间无效', 'error'); return; }
+      if (isNaN(at)) { toast(t('auto.error.invalid-time','执行时间无效'), 'error'); return; }
       trigger.at = at;
     } else if (triggerType === 'event') {
       trigger.event = document.getElementById('auto-event').value;
@@ -369,7 +371,7 @@
     var action = { type: actionType };
     if (['launch-profile','stop-profile','agent-task'].includes(actionType)) {
       action.profileDirId = document.getElementById('auto-action-profile').value;
-      if (!action.profileDirId) { toast('请选择 profile', 'error'); return; }
+      if (!action.profileDirId) { toast(t('auto.error.select-profile','请选择 profile'), 'error'); return; }
     }
     if (actionType === 'agent-task') {
       action.templateId = document.getElementById('auto-action-template').value || undefined;
@@ -381,7 +383,7 @@
     document.getElementById('dlg-automation').close();
     var p = id ? api.automation.update(Object.assign({ id: id }, payload)) : api.automation.create(payload);
     p.then(function(r) {
-      toast(r.success ? (id ? '已更新' : '已创建') : ('失败: ' + (r.error || '')), r.success ? 'success' : 'error');
+      toast(r.success ? (id ? t('auto.saved','已更新') : t('auto.created','已创建')) : t('auto.save-failed','失败: ') + (r.error || ''), r.success ? 'success' : 'error');
       cloak.loadAutomationTab();
     });
   };
@@ -391,11 +393,11 @@
     api.automation.update({ id: rule.id, enabled: !rule.enabled, name: rule.name, trigger: rule.trigger, action: rule.action }).then(function() { cloak.loadAutomationTab(); });
   };
   cloak.automationTest = function(ruleId) {
-    toast('测试运行中...', 'info');
-    api.automation.testRun(ruleId).then(function(r) { toast((r.ok?'✅ ':'❌ ') + r.result.slice(0,60), r.ok?'success':'error'); setTimeout(function(){ cloak.loadAutomationTab(); }, 500); });
+    toast(t('auto.test-running','测试运行中...'), 'info');
+    api.automation.testRun(ruleId).then(function(r) { toast((r.ok ? t('auto.test-ok','✅ ') : t('auto.test-fail','❌ ')) + r.result.slice(0,60), r.ok?'success':'error'); setTimeout(function(){ cloak.loadAutomationTab(); }, 500); });
   };
   cloak.automationDelete = function(ruleId) {
-    if (!confirm('删除此任务?')) return;
-    api.automation.delete(ruleId).then(function() { toast('已删除', 'success'); cloak.loadAutomationTab(); });
+    if (!confirm(t('auto.confirm-delete','删除此任务?'))) return;
+    api.automation.delete(ruleId).then(function() { toast(t('auto.deleted','已删除'), 'success'); cloak.loadAutomationTab(); });
   };
 })();
