@@ -9,15 +9,17 @@
   var esc = helpers.esc;
   var escAttr = helpers.escAttr;
 
+  function t(key, fallback) { return window.i18n ? window.i18n.t(key, fallback) : fallback; }
+
   var CATEGORY_META = {
-    profile:  { icon: "📦", label: "Profile" },
-    proxy:    { icon: "🔌", label: "代理" },
-    account:  { icon: "🔑", label: "账号" },
-    llm:      { icon: "🤖", label: "LLM" },
-    sync:     { icon: "☁️", label: "同步" },
-    automation:{ icon: "⏰", label: "自动化" },
-    agent:    { icon: "🧠", label: "Agent" },
-    settings: { icon: "⚙️", label: "设置" },
+    profile:  { icon: "📦", label: function(){ return t("activity.cat.profile", "Profile"); } },
+    proxy:    { icon: "🔌", label: function(){ return t("activity.cat.proxy", "代理"); } },
+    account:  { icon: "🔑", label: function(){ return t("activity.cat.account", "账号"); } },
+    llm:      { icon: "🤖", label: function(){ return t("activity.cat.llm", "LLM"); } },
+    sync:     { icon: "☁️", label: function(){ return t("activity.cat.sync", "同步"); } },
+    automation:{ icon: "⏰", label: function(){ return t("activity.cat.automation", "自动化"); } },
+    agent:    { icon: "🧠", label: function(){ return t("activity.cat.agent", "Agent"); } },
+    settings: { icon: "⚙️", label: function(){ return t("activity.cat.settings", "设置"); } },
   };
 
   function fmtTime(ms) {
@@ -40,9 +42,9 @@
     var code = ' <code style="font-family:var(--mono);font-size:11px;">' + esc(short) + '</code>';
     var kind = targetKind(value);
     var category = entry.category || "";
-    if (category === "automation" && kind === "job") return code + ' <button class="btn btn-secondary btn-sm" data-activity-action="open-job" data-target-id="' + escAttr(value) + '">查看 Job</button>';
-    if (category === "agent" && kind === "run") return code + ' <button class="btn btn-secondary btn-sm" data-activity-action="open-run" data-target-id="' + escAttr(value) + '">查看 Run</button>';
-    if (category === "profile" && kind === "profile") return code + ' <button class="btn btn-secondary btn-sm" data-activity-action="open-profile" data-target-id="' + escAttr(value) + '">查看 Profile</button>';
+    if (category === "automation" && kind === "job") return code + ' <button class="btn btn-secondary btn-sm" data-activity-action="open-job" data-target-id="' + escAttr(value) + '">' + esc(t('activity.btn.open-job','查看 Job')) + '</button>';
+    if (category === "agent" && kind === "run") return code + ' <button class="btn btn-secondary btn-sm" data-activity-action="open-run" data-target-id="' + escAttr(value) + '">' + esc(t('activity.btn.open-run','查看 Run')) + '</button>';
+    if (category === "profile" && kind === "profile") return code + ' <button class="btn btn-secondary btn-sm" data-activity-action="open-profile" data-target-id="' + escAttr(value) + '">' + esc(t('activity.btn.open-profile','查看 Profile')) + '</button>';
     return code;
   }
 
@@ -62,7 +64,7 @@
       if (Date.now() - started < 4000) {
         setTimeout(focusWhenReady, 100);
       } else {
-        toast("Profile 不在当前列表中: " + dirId, "error");
+        toast(t("activity.toast.profile-missing","Profile 不在当前列表中: ") + dirId, "error");
       }
     }
     focusWhenReady();
@@ -76,14 +78,14 @@
     api.audit.list(opts).then(function(entries) {
       var el = document.getElementById("activity-list");
       if (!entries || entries.length === 0) {
-        el.innerHTML = '<div class="empty-state">还没有审计记录。<br>启动/停止 profile、保存代理/账号/LLM 配置、运行自动化任务都会记录在这里。</div>';
+        el.innerHTML = '<div class="empty-state">' + t("activity.empty-state","还没有审计记录。<br>启动/停止 profile、保存代理/账号/LLM 配置、运行自动化任务都会记录在这里。") + '</div>';
         return;
       }
       var html = entries.map(function(e) {
         var meta = CATEGORY_META[e.category] || { icon: "•", label: e.category || "?" };
         var target = renderTarget(e);
         var detail = e.detail ? '<div style="color:var(--text-muted);font-size:11px;margin-top:2px;">' + esc(String(e.detail).slice(0, 200)) + "</div>" : "";
-        var actor = e.actor && e.actor !== "user" ? ' <span style="color:var(--text-muted);font-size:10px;">by ' + esc(e.actor) + "</span>" : "";
+        var actor = e.actor && e.actor !== "user" ? ' <span style="color:var(--text-muted);font-size:10px;">' + esc(t("activity.actor-by","by ")) + esc(e.actor) + "</span>" : "";
         return '<div class="profile-card" style="padding:8px 10px;margin-bottom:6px;">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
             '<span>' + meta.icon + ' <strong>' + esc(e.action || "?") + "</strong>" + actor + target + "</span>" +
@@ -99,13 +101,13 @@
         else if (btn.dataset.activityAction === "open-run") cloak.runsOpen(id);
         else if (btn.dataset.activityAction === "open-profile") cloak.activityOpenProfile(id);
       };
-    }).catch(function(e) { toast("加载审计失败: " + (e.message || e), "error"); });
+    }).catch(function(e) { toast(t("activity.toast.load-failed","加载审计失败: ") + (e.message || e), "error"); });
   };
 
   cloak.activityFilter = function() { cloak.loadActivity(); };
 
   cloak.activityClear = function() {
-    if (!confirm("清空所有审计记录？此操作不可撤销。")) return;
-    api.audit.clear().then(function() { toast("已清空", "success"); cloak.loadActivity(); });
+    if (!confirm(t("activity.confirm.clear-all","清空所有审计记录？此操作不可撤销。"))) return;
+    api.audit.clear().then(function() { toast(t("activity.toast.cleared","已清空"), "success"); cloak.loadActivity(); });
   };
 })();
