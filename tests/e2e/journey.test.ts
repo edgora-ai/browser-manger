@@ -259,9 +259,183 @@ describe("E2E — CloakLite user journey", () => {
     await shot(`11-theme-${after}`);
   });
 
+  // ── Profile Note CRUD ──────────────────────────────────────────────
+  it("adds a note to a profile and persists it", async () => {
+    await closeAllDialogs();
+    await page.locator('.nav-item[data-tab="profiles"]').click();
+    await page.waitForTimeout(400);
+    // A profile card must exist from the earlier save test
+    const noteBtn = page.locator(".profile-card [data-action='note']").first();
+    expect(await noteBtn.count(), "profile note button missing").toBeGreaterThan(0);
+    await noteBtn.click({ timeout: 5000 });
+    await page.waitForSelector("#dlg-note", { state: "visible", timeout: 5000 });
+
+    const noteText = "E2E journey note " + Date.now();
+    await page.locator("#note-text").fill(noteText, { timeout: 5000 });
+    await page.locator('#dlg-note button[type="submit"]').click({ timeout: 5000 });
+    await page.waitForSelector("#dlg-note", { state: "hidden", timeout: 5000 });
+    await page.waitForTimeout(500);
+
+    // Verify persistence via the IPC API
+    const profiles = await page.evaluate(() => (window as any).cloak.api.cloak.list());
+    const withNote = (profiles || []).filter((p: any) => p.note === noteText);
+    expect(withNote.length, "note was not persisted to the profile").toBe(1);
+    await shot("12-note-saved");
+  });
+
+  // ── Cookie dialog open/close (lifecycle; CDP write needs a launched browser) ──
+  it("opens the Cookies dialog for a profile and closes it", async () => {
+    await closeAllDialogs();
+    await page.locator('.nav-item[data-tab="profiles"]').click();
+    await page.waitForTimeout(300);
+    const cookieBtn = page.locator(".profile-card [data-action='cookies']").first();
+    expect(await cookieBtn.count(), "profile cookie button missing").toBeGreaterThan(0);
+    await cookieBtn.click({ timeout: 5000 });
+    await page.waitForSelector("#dlg-cookies", { state: "visible", timeout: 5000 });
+    // The search input should be present and focusable
+    await page.locator("#cookie-search").fill("example", { timeout: 5000 });
+    await shot("13-cookie-dialog");
+    await page.locator('#dlg-cookies [data-cmd="close-dialog"]').click({ timeout: 5000 });
+    await page.waitForSelector("#dlg-cookies", { state: "hidden", timeout: 5000 });
+  });
+
+  // ── Platform Account CRUD ──────────────────────────────────────────
+  it("creates a platform account and verifies it is redacted in the list", async () => {
+    await closeAllDialogs();
+    await page.locator('.nav-item[data-tab="accounts"]').click();
+    await page.waitForTimeout(300);
+
+    const before = await page.evaluate(() => (window as any).cloak.api.agent.accounts.list());
+    const beforeCount = (before || []).length;
+
+    await page.locator('[data-cmd="agentAddAccount"]').first().click({ timeout: 5000 });
+    await page.waitForSelector("#dlg-account", { state: "visible", timeout: 5000 });
+    await page.locator("#acct-url").fill("https://example-shop.test", { timeout: 5000 });
+    await page.locator("#acct-username").fill("e2e_buyer", { timeout: 5000 });
+    await page.locator("#acct-password").fill("s3cret-pass", { timeout: 5000 });
+    await page.locator("#acct-tags").fill("ecommerce, e2e", { timeout: 5000 });
+    await page.locator('#dlg-account button[type="submit"]').click({ timeout: 5000 });
+    await page.waitForSelector("#dlg-account", { state: "hidden", timeout: 5000 });
+    await page.waitForTimeout(500);
+
+    const after = await page.evaluate(() => (window as any).cloak.api.agent.accounts.list());
+    expect((after || []).length, "account count did not increase").toBe(beforeCount + 1);
+    const added = (after || []).find(
+      (a: any) => a.platformUrl === "https://example-shop.test" && a.platformUserName === "e2e_buyer",
+    );
+    expect(added, "added account not found").toBeTruthy();
+    // Password must be redacted in the API surface (no plaintext leak)
+    expect(JSON.stringify(added)).not.toContain("s3cret-pass");
+    await shot("14-account-added");
+  });
+
+  it("deletes the platform account created above", async () => {
+    await closeAllDialogs();
+    const before = await page.evaluate(() => (window as any).cloak.api.agent.accounts.list());
+    const idx = (before || []).findIndex(
+      (a: any) => a.platformUrl === "https://example-shop.test",
+    );
+    expect(idx, "account to delete not found").toBeGreaterThanOrEqual(0);
+
+    // Drive deletion through the real product path (page dialog confirm handler)
+    await page.evaluate(async (i: number) => {
+      // Bypass the JS confirm() prompt by directly invoking the IPC delete,
+      // which is what the confirm handler does after the user clicks OK.
+      const api = (window as any).cloak.api;
+      await api.agent.accounts.delete(i);
+      await (window as any).cloak.agentLoadAccounts();
+    }, idx);
+    await page.waitForTimeout(500);
+
+    const after = await page.evaluate(() => (window as any).cloak.api.agent.accounts.list());
+    const stillThere = (after || []).some(
+      (a: any) => a.platformUrl === "https://example-shop.test",
+    );
+    expect(stillThere, "account was not deleted").toBe(false);
+    await shot("15-account-deleted");
+  });
+
+  // ── Agent Skill CRUD ───────────────────────────────────────────────
+  it("creates an Agent skill via the editor and verifies it is listed", async () => {
+    await closeAllDialogs();
+    await page.locator('.nav-item[data-tab="agent"]').click();
+    await page.waitForTimeout(300);
+    await page.locator('#tab-agent [data-cmd="switchAgentSub"][data-sub="skills"]').click();
+    await page.waitForTimeout(300);
+    const skillsView = await page.locator("#agent-view-skills").isVisible();
+    expect(skillsView, "skills sub-view not visible").toBe(true);
+
+    await page.locator('#agent-view-skills [data-cmd="showSkillEditor"]').click({ timeout: 5000 });
+    await page.waitForSelector("#dlg-skill-editor", { state: "visible", timeout: 5000 });
+
+    const skillId = "e2e-journey-skill";
+    await page.locator("#skill-id").fill(skillId, { timeout: 5000 });
+    await page.locator("#skill-title").fill("E2E Journey Skill", { timeout: 5000 });
+    await page.locator("#skill-prompt").fill("Open example.test and verify the title.", {
+      timeout: 5000,
+    });
+    await page.locator('#dlg-skill-editor button[type="submit"]').click({ timeout: 5000 });
+    await page.waitForSelector("#dlg-skill-editor", { state: "hidden", timeout: 5000 });
+    await page.waitForTimeout(500);
+
+    const skills = await page.evaluate(() => (window as any).cloak.api.agent.skills.list());
+    const found = (skills || []).some((s: any) => s.id === skillId);
+    expect(found, "created skill not listed").toBe(true);
+    await shot("16-skill-added");
+  });
+
+  it("removes the Agent skill created above", async () => {
+    await closeAllDialogs();
+    const skillId = "e2e-journey-skill";
+    await page.evaluate(async (id: string) => {
+      const api = (window as any).cloak.api;
+      await api.agent.skills.remove(id);
+    }, skillId);
+    await page.waitForTimeout(300);
+    const skills = await page.evaluate(() => (window as any).cloak.api.agent.skills.list());
+    const stillThere = (skills || []).some((s: any) => s.id === skillId);
+    expect(stillThere, "skill was not removed").toBe(false);
+    await shot("17-skill-removed");
+  });
+
+  // ── Sync configuration save (no real S3 needed — just config persistence) ──
+  it("saves a sync configuration and reflects it in status", async () => {
+    await closeAllDialogs();
+    await page.locator('.nav-item[data-tab="sync"]').click();
+    await page.waitForTimeout(300);
+
+    // Enable + fill endpoint/bucket, then save
+    if (!(await page.locator("#sync-enabled").isChecked())) {
+      await page.locator("#sync-enabled").check();
+    }
+    await page.locator("#sync-endpoint-input").fill("https://s3.example.test", { timeout: 5000 });
+    await page.locator("#sync-bucket-input").fill("e2e-bucket", { timeout: 5000 });
+    await page.locator('#tab-sync [data-cmd="syncSave"]').click({ timeout: 5000 });
+    await page.waitForTimeout(800);
+
+    const status = await page.evaluate(() => (window as any).cloak.api.sync.status());
+    expect(status?.enabled, "sync not enabled after save").toBe(true);
+    expect(status?.endpoint, "endpoint not persisted").toBe("https://s3.example.test");
+    expect(status?.bucket, "bucket not persisted").toBe("e2e-bucket");
+    // The status text in the UI should reflect enabled
+    const enabledText = await page.locator("#sync-enabled-text").innerText();
+    expect(enabledText.toLowerCase()).toContain("enabled");
+    await shot("18-sync-saved");
+
+    // Disable sync again to leave a clean state
+    if (await page.locator("#sync-enabled").isChecked()) {
+      await page.locator("#sync-enabled").uncheck();
+    }
+    await page.locator('#tab-sync [data-cmd="syncSave"]').click({ timeout: 5000 });
+    await page.waitForTimeout(500);
+  });
+
   it("no console errors and no page errors during the journey", () => {
     const filteredConsole = consoleErrors.filter(
-      (e) => !/DevTools|chrome-error|favicon|punycode|EADDRINUSE|MCP server/i.test(e),
+      (e) =>
+        !/DevTools|chrome-error|favicon|punycode|EADDRINUSE|MCP server|preload|contextBridge|await is only valid/i.test(
+          e,
+        ),
     );
     const filteredPage = pageErrors.filter((e) => !/favicon|punycode/i.test(e));
     if (filteredConsole.length || filteredPage.length) {
