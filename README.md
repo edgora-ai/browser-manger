@@ -153,7 +153,7 @@ Read before use:
 | Area | Current state |
 |---|---|
 | Platform support | macOS on Apple Silicon is supported out of the box. Windows/Linux cross-platform code paths exist but are not yet fully verified end-to-end. |
-| i18n | zh-CN and en-US are supported with runtime switching. The core UI, sidebar, wizard, and tray are translated; some generated strings in Automation/Runs/Activity/DB/Approval still fall back to Chinese. |
+| i18n | zh-CN and en-US are supported with runtime switching. The core UI, sidebar, wizard, tray, and Automation/Runs/Activity/DB/Approval/Sync/Agent-config/Extensions modules are translated; a few long-form template prompts retain Chinese fallbacks. |
 | Agent chat streaming | Live token streaming is supported for OpenAI-compatible and Claude providers. Tool-call metadata is emitted after each tool-call block completes; tool execution blocks the next streaming round. |
 | Onboarding wizard | A 4-step first-run wizard (install binary → create profile → launch + risk check → optional AI config) appears when no binary or profiles exist. |
 | Renderer architecture | The renderer is modular vanilla JS loaded by script tags; it is not bundled. Some modules remain large and rely on a shared global namespace. |
