@@ -10,6 +10,7 @@
   var esc = helpers.esc;
   var escAttr = helpers.escAttr;
   var fmt = helpers.fmt;
+  function t(key, fallback) { return window.i18n ? window.i18n.t(key, fallback) : fallback; }
   var shortPath = helpers.shortPath;
   var renderChatMarkdown = helpers.renderChatMarkdown;
   var renderInlineMarkdown = helpers.renderInlineMarkdown;
@@ -85,7 +86,7 @@
     var langLabel = document.getElementById('lang-label');
     if (langLabel) {
       var l = window.i18n.get();
-      langLabel.textContent = l === 'zh-CN' ? '中' : 'EN';
+      langLabel.textContent = l === 'zh-CN' ? t('agent-config.lang-zh','中') : t('agent-config.lang-en','EN');
     }
     // Also update the theme label (it gets overridden by i18n after apply)
   };
@@ -164,7 +165,7 @@
     var el = document.getElementById('agent-fs-allowlist');
     if (!el) return;
     if (fsAllowlist.length === 0) {
-      el.innerHTML = '<span style="color:var(--text-muted);">(无)</span>';
+      el.innerHTML = '<span style="color:var(--text-muted);">' + esc(t('agent-config.no-accounts','(无)')) + '</span>';
       return;
     }
     el.innerHTML = fsAllowlist.map(function(d, i) {
@@ -202,7 +203,7 @@
         var el = document.getElementById('agent-fs-saved');
         el.style.display = 'inline';
         setTimeout(function(){ el.style.display = 'none'; }, 3000);
-        toast('文件访问设置已保存', 'success');
+        toast(t('agent-config.file-access-saved','文件访问设置已保存'), 'success');
       }
     }).catch(function(e) { toast(e.message, 'error'); });
   };

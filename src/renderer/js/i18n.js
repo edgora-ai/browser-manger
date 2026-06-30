@@ -376,6 +376,44 @@
       "db.no-result-end": " 行)",
       "db.truncated": "+ (截断)",
 
+      // ── Approval ──
+      "approval.signature": "签名: ",
+      "approval.allowed": "已允许",
+      "approval.allowed-always": "已允许(永久)",
+      "approval.denied": "已拒绝",
+
+      // ── Sync ──
+      "sync.preview.unavailable": "Preview unavailable",
+      "sync.preview.profiles.running": " 个运行中；Pull 会跳过 localStorage/preferences",
+      "sync.preview.profiles.no-skip": "Pull 无运行中跳过项",
+      "sync.preview.proxies": "将随配置快照同步（敏感字段脱敏）",
+      "sync.preview.accounts": "平台账号元数据；密码不展示",
+      "sync.preview.extensions": "私有扩展仓库条目",
+      "sync.preview.running-title": "运行中 Profiles",
+      "sync.preview.skip-badge": "Pull skip",
+      "sync.preview.load-failed": "Preview 加载失败",
+      "sync.preview.load-failed-prefix": "Preview 加载失败: ",
+      "sync.confirm.pull-running": "检测到 ",
+      "sync.confirm.pull-running-mid": " 个运行中 profile。Pull 会跳过这些 profile 的 localStorage/preferences，继续?",
+      "sync.toast.push-failed": "Push failed: ",
+      "sync.toast.pull-failed": "Pull failed: ",
+      "sync.toast.preview-failed": "Preview failed: ",
+      "sync.toast.reload-failed": "Reload config failed: ",
+      "sync.toast.save-failed": "Save failed",
+      "sync.toast.save-failed-prefix": "Save failed: ",
+      "sync.toast.save-failed-default": "Save failed",
+
+      // ── Agent config ──
+      "agent-config.lang-zh": "中",
+      "agent-config.lang-en": "EN",
+      "agent-config.no-accounts": "(无)",
+      "agent-config.file-access-saved": "文件访问设置已保存",
+
+      // ── Extensions ──
+      "ext.confirm-delete": "删除扩展 ",
+      "ext.confirm-delete-mid": "?\n会从所有 profile 移除,磁盘文件也删除。",
+      "ext.local-no-update-title": "本地扩展无法自动更新,请重新导入",
+
       // ── Common buttons ──
       "common.cancel": "取消",
       "common.save": "保存",
@@ -907,6 +945,44 @@
       "db.no-result": "(no result, ",
       "db.no-result-end": " rows)",
       "db.truncated": "+ (truncated)",
+
+      // ── Approval ──
+      "approval.signature": "Signature: ",
+      "approval.allowed": "Allowed",
+      "approval.allowed-always": "Allowed (permanent)",
+      "approval.denied": "Denied",
+
+      // ── Sync ──
+      "sync.preview.unavailable": "Preview unavailable",
+      "sync.preview.profiles.running": " profiles running; Pull skips localStorage/preferences",
+      "sync.preview.profiles.no-skip": "No running profiles — nothing skipped on Pull",
+      "sync.preview.proxies": "Synced with config snapshot (sensitive fields redacted)",
+      "sync.preview.accounts": "Platform account metadata; passwords not shown",
+      "sync.preview.extensions": "Private extension repository entries",
+      "sync.preview.running-title": "Running Profiles",
+      "sync.preview.skip-badge": "Pull skip",
+      "sync.preview.load-failed": "Preview load failed",
+      "sync.preview.load-failed-prefix": "Preview load failed: ",
+      "sync.confirm.pull-running": "Detected ",
+      "sync.confirm.pull-running-mid": " running profiles. Pull will skip localStorage/preferences for these. Continue?",
+      "sync.toast.push-failed": "Push failed: ",
+      "sync.toast.pull-failed": "Pull failed: ",
+      "sync.toast.preview-failed": "Preview failed: ",
+      "sync.toast.reload-failed": "Reload config failed: ",
+      "sync.toast.save-failed": "Save failed",
+      "sync.toast.save-failed-prefix": "Save failed: ",
+      "sync.toast.save-failed-default": "Save failed",
+
+      // ── Agent config ──
+      "agent-config.lang-zh": "中",
+      "agent-config.lang-en": "EN",
+      "agent-config.no-accounts": "(none)",
+      "agent-config.file-access-saved": "File access settings saved",
+
+      // ── Extensions ──
+      "ext.confirm-delete": "Delete extension ",
+      "ext.confirm-delete-mid": "?\nIt will be removed from all profiles and the disk file deleted.",
+      "ext.local-no-update-title": "Local extensions cannot auto-update; re-import",
 
       "common.cancel": "Cancel",
       "common.save": "Save",

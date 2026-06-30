@@ -9,6 +9,7 @@
   var toast = helpers.toast;
   var esc = helpers.esc;
   var escAttr = helpers.escAttr;
+  function t(key, fallback) { return window.i18n ? window.i18n.t(key, fallback) : fallback; }
   var fmt = helpers.fmt;
   var shortPath = helpers.shortPath;
   var renderChatMarkdown = helpers.renderChatMarkdown;
@@ -183,7 +184,7 @@
       },
 
   extDelete: function(extId) {
-        if (!confirm('删除扩展 ' + extId + '?\n会从所有 profile 移除,磁盘文件也删除。')) return;
+        if (!confirm(t('ext.confirm-delete','删除扩展 ') + extId + t('ext.confirm-delete-mid','?\n会从所有 profile 移除,磁盘文件也删除。'))) return;
         var statusEl = document.getElementById('ext-install-status');
         if (statusEl) statusEl.innerHTML = '<span style="color:var(--primary);">Deleting ' + esc(extId) + '...</span>';
         api.settings.deleteRepositoryExtension(extId).then(function(r) {
@@ -316,7 +317,7 @@
           (tags ? '<div style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0;">' + tags + '</div>' : '') +
           '<div class="card-actions">' +
             (e.source === 'local'
-              ? '<button class="btn btn-secondary btn-sm" disabled title="本地扩展无法自动更新,请重新导入">Update</button> '
+              ? '<button class="btn btn-secondary btn-sm" disabled title="' + escAttr(t('ext.local-no-update-title','本地扩展无法自动更新,请重新导入')) + '">Update</button> '
               : '<button class="btn btn-secondary btn-sm" data-action="repo-update">Update</button> ') +
             '<button class="btn btn-secondary btn-sm" data-action="repo-share">' + (e.shared ? 'Unshare' : 'Share') + '</button> ' +
             '<button class="btn btn-danger btn-sm" data-action="repo-delete">Delete</button>' +

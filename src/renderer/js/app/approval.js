@@ -8,12 +8,14 @@
   var toast = helpers.toast;
   var esc = helpers.esc;
 
+  function t(key, fallback) { return window.i18n ? window.i18n.t(key, fallback) : fallback; }
+
   var currentRequest = null;
 
   function show(req) {
     currentRequest = req;
     document.getElementById("approval-desc").textContent = req.description || "";
-    document.getElementById("approval-detail").textContent = req.detail ? "签名: " + req.detail : "";
+    document.getElementById("approval-detail").textContent = req.detail ? t("approval.signature","签名: ") + req.detail : "";
     var dlg = document.getElementById("dlg-approval");
     if (!dlg.open) dlg.showModal();
   }
@@ -29,7 +31,7 @@
     var id = currentRequest.id;
     close();
     api.approval.resolve(id, mode === "always" ? "always" : "once").then(function() {
-      toast(mode === "always" ? "已允许(永久)" : "已允许", "success");
+      toast(mode === "always" ? t("approval.allowed-always","已允许(永久)") : t("approval.allowed","已允许"), "success");
     });
   };
 
@@ -40,7 +42,7 @@
       var id = currentRequest.id;
       close();
       api.approval.resolve(id, "deny").then(function() {
-        toast("已拒绝", "info");
+        toast(t("approval.denied","已拒绝"), "info");
       });
     } else {
       close();

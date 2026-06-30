@@ -8,6 +8,8 @@
   var esc = helpers.esc;
   var escAttr = helpers.escAttr;
 
+  function t(key, fallback) { return window.i18n ? window.i18n.t(key, fallback) : fallback; }
+
   function setButtonBusy(selector, busyText) {
     var btn = document.querySelector(selector);
     if (!btn) return null;
@@ -34,14 +36,14 @@
     if (!messageEl || !listEl) return;
     preview = preview || {};
     var running = preview.runningProfiles || [];
-    messageEl.innerHTML = (preview.configured ? '✅ ' : '⚠️ ') + esc(preview.message || 'Preview unavailable');
+    messageEl.innerHTML = (preview.configured ? '✅ ' : '⚠️ ') + esc(preview.message || t('sync.preview.unavailable', 'Preview unavailable'));
     listEl.innerHTML = [
-      previewCountCard('Profiles', preview.profiles || 0, running.length ? running.length + ' 个运行中；Pull 会跳过 localStorage/preferences' : 'Pull 无运行中跳过项'),
-      previewCountCard('Proxies', preview.proxies || 0, '将随配置快照同步（敏感字段脱敏）'),
-      previewCountCard('Accounts', preview.accounts || 0, '平台账号元数据；密码不展示'),
-      previewCountCard('Extensions', preview.extensions || 0, '私有扩展仓库条目'),
+      previewCountCard('Profiles', preview.profiles || 0, running.length ? running.length + t('sync.preview.profiles.running', ' 个运行中；Pull 会跳过 localStorage/preferences') : t('sync.preview.profiles.no-skip', 'Pull 无运行中跳过项')),
+      previewCountCard('Proxies', preview.proxies || 0, t('sync.preview.proxies', '将随配置快照同步（敏感字段脱敏）')),
+      previewCountCard('Accounts', preview.accounts || 0, t('sync.preview.accounts', '平台账号元数据；密码不展示')),
+      previewCountCard('Extensions', preview.extensions || 0, t('sync.preview.extensions', '私有扩展仓库条目')),
     ].join('') + (running.length ? '<div class="profile-card" style="border-color:var(--warning);">' +
-      '<div class="card-header"><span class="name">运行中 Profiles</span><span class="status-badge status-running">Pull skip</span></div>' +
+      '<div class="card-header"><span class="name">' + esc(t('sync.preview.running-title','运行中 Profiles')) + '</span><span class="status-badge status-running">' + esc(t('sync.preview.skip-badge','Pull skip')) + '</span></div>' +
       '<div style="font-family:var(--mono);font-size:11px;color:var(--text-muted);word-break:break-all;">' + running.map(esc).join('<br>') + '</div>' +
     '</div>' : '');
   }
@@ -59,9 +61,9 @@
     if (listEl) listEl.innerHTML = '<div class="loading">Loading...</div>';
     if (messageEl) messageEl.textContent = 'Loading...';
     return fetchPreview().catch(function(e) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state">Preview 加载失败: ' + esc(e.message || e) + '</div>';
-      if (messageEl) messageEl.textContent = 'Preview 加载失败';
-      toast('Preview 加载失败: ' + (e.message || e), 'error');
+      if (listEl) listEl.innerHTML = '<div class="empty-state">' + esc(t('sync.preview.load-failed-prefix','Preview 加载失败: ')) + esc(e.message || e) + '</div>';
+      if (messageEl) messageEl.textContent = t('sync.preview.load-failed','Preview 加载失败');
+      toast(t('sync.preview.load-failed-prefix','Preview 加载失败: ') + (e.message || e), 'error');
       return null;
     });
   };
@@ -74,12 +76,12 @@
         if (r.success) cloak.loadSyncConfig();
         else cloak.loadSyncPreview();
       }).catch(function(e) {
-        toast('Push failed: ' + (e.message || String(e)), 'error');
+        toast(t('sync.toast.push-failed','Push failed: ') + (e.message || String(e)), 'error');
       }).finally(function() {
         if (reset) reset();
       });
     }).catch(function(e) {
-      toast('Preview failed: ' + (e.message || String(e)), 'error');
+      toast(t('sync.toast.preview-failed','Preview failed: ') + (e.message || String(e)), 'error');
       if (reset) reset();
     });
   };
@@ -89,7 +91,7 @@
     fetchPreview().then(function(preview) {
       var running = (preview && preview.runningProfiles) || [];
       if (running.length) {
-        var ok = confirm('检测到 ' + running.length + ' 个运行中 profile。Pull 会跳过这些 profile 的 localStorage/preferences，继续?');
+        var ok = confirm(t('sync.confirm.pull-running','检测到 ') + running.length + t('sync.confirm.pull-running-mid',' 个运行中 profile。Pull 会跳过这些 profile 的 localStorage/preferences，继续?'));
         if (!ok) { if (reset) reset(); return; }
       }
       api.sync.pull().then(function(r) {
@@ -98,16 +100,16 @@
         return api.app.reloadConfig().then(function() {
           cloak.loadSyncConfig();
         }).catch(function(e) {
-          toast('Reload config failed: ' + (e.message || String(e)), 'error');
+          toast(t('sync.toast.reload-failed','Reload config failed: ') + (e.message || String(e)), 'error');
           cloak.loadSyncConfig();
         });
       }).catch(function(e) {
-        toast('Pull failed: ' + (e.message || String(e)), 'error');
+        toast(t('sync.toast.pull-failed','Pull failed: ') + (e.message || String(e)), 'error');
       }).finally(function() {
         if (reset) reset();
       });
     }).catch(function(e) {
-      toast('Preview failed: ' + (e.message || String(e)), 'error');
+      toast(t('sync.toast.preview-failed','Preview failed: ') + (e.message || String(e)), 'error');
       if (reset) reset();
     });
   };
@@ -130,10 +132,10 @@
         document.getElementById('sync-bucket').textContent = config.bucket || '--';
         cloak.loadSyncPreview();
       } else {
-        toast(r.error || 'Save failed', 'error');
+        toast(r.error || t('sync.toast.save-failed-default','Save failed'), 'error');
       }
     }).catch(function(e) {
-      toast('Save failed: ' + (e.message || String(e)), 'error');
+      toast(t('sync.toast.save-failed-prefix','Save failed: ') + (e.message || String(e)), 'error');
     });
   };
 
