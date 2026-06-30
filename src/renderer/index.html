@@ -23,10 +23,10 @@
  <li class="nav-item" data-tab="extensions" data-role="cmd" data-cmd="switchTab" data-i18n="tab.extensions">🧩 Extensions</li>
  <li class="nav-item" data-tab="accounts" data-role="cmd" data-cmd="switchTab" data-i18n="tab.accounts">🔑 Accounts</li>
  <li class="nav-item" data-tab="agent" data-role="cmd" data-cmd="switchTab" data-i18n="tab.agent">🤖 Agent</li>
- <li class="nav-item" data-tab="automation" data-role="cmd" data-cmd="switchTab" data-i18n="tab.automation">⏰ 自动化</li>
- <li class="nav-item" data-tab="runs" data-role="cmd" data-cmd="switchTab" data-i18n="tab.runs">🤖 运行记录</li>
- <li class="nav-item" data-tab="activity" data-role="cmd" data-cmd="switchTab" data-i18n="tab.activity">📜 活动审计</li>
- <li class="nav-item" data-tab="db" data-role="cmd" data-cmd="switchTab" data-i18n="tab.db">📊 数据库</li>
+ <li class="nav-item" data-tab="automation" data-role="cmd" data-cmd="switchTab" data-i18n="tab.automation">⏰ Automation</li>
+ <li class="nav-item" data-tab="runs" data-role="cmd" data-cmd="switchTab" data-i18n="tab.runs">🤖 Runs</li>
+ <li class="nav-item" data-tab="activity" data-role="cmd" data-cmd="switchTab" data-i18n="tab.activity">📜 Activity</li>
+ <li class="nav-item" data-tab="db" data-role="cmd" data-cmd="switchTab" data-i18n="tab.db">📊 Database</li>
  </ul>
  <div class="sidebar-footer">
  <span id="sidebar-chrome-status" style="font-size:10px;display:block;"></span>
@@ -111,7 +111,7 @@
  <div class="card">
  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
  <h3 style="margin:0;">Pre-flight Preview</h3>
- <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadSyncPreview">刷新 Preview</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadSyncPreview" data-i18n="sync.btn.refresh-preview">Refresh Preview</button>
  </div>
  <p id="sync-preview-message" style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">Loading...</p>
  <div id="sync-preview" class="profile-grid"><div class="loading">Loading...</div></div>
@@ -156,8 +156,8 @@
  <h2 data-i18n="ext.title">Private Extension Repository</h2>
  <div class="header-btns">
  <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="showRepositoryAdd" data-i18n="ext.add">+ 从商店下载</button>
- <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="extInstallFromFile">📁 导入 CRX/ZIP</button>
- <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="extInstallFromDir">📂 导入解压目录</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="extInstallFromFile" data-i18n="ext.btn.import-crx">📁 Import CRX/ZIP</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="extInstallFromDir" data-i18n="ext.btn.import-dir">📂 Import Unpacked Dir</button>
  <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="exportSharedExtensions" data-i18n="ext.export-shared">Export Shared</button>
  <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadExtensionsTab" data-i18n="browser.refresh">Refresh</button>
  </div>
@@ -236,25 +236,25 @@
  <span id="agent-config-saved" style="display:none;color:var(--success);font-size:12px;">✓ Saved</span>
  </div>
 
- <h4 style="margin:18px 0 6px;">📁 Agent 文件访问</h4>
- <p style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;">read_file / write_file 工具的访问边界。</p>
- <div class="form-row"><label>模式</label>
+ <h4 style="margin:18px 0 6px;" data-i18n="agent-fs.title">📁 Agent File Access</h4>
+ <p style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;" data-i18n="agent-fs.desc">Access boundary for the read_file / write_file tools.</p>
+ <div class="form-row"><label data-i18n="agent-fs.label-mode">Mode</label>
  <select id="agent-fs-mode" data-role="change" data-change-cmd="agentFsModeChanged">
- <option value="sandbox">沙箱(仅 agent-files 目录)</option>
- <option value="allowlist">授信目录列表</option>
- <option value="open">任意路径(风险高)</option>
+ <option value="sandbox" data-i18n="agent-fs.mode-sandbox">Sandbox (agent-files dir only)</option>
+ <option value="allowlist" data-i18n="agent-fs.mode-allowlist">Allowlist of trusted dirs</option>
+ <option value="open" data-i18n="agent-fs.mode-open">Any path (high risk)</option>
  </select>
  </div>
  <div id="agent-fs-allowlist-row" class="form-row" style="display:none;align-items:flex-start;">
- <label>授信目录</label>
+ <label data-i18n="agent-fs.label-dirs">Trusted Dirs</label>
  <div style="flex:1;">
  <div id="agent-fs-allowlist" style="margin-bottom:6px;font-size:12px;"></div>
- <button type="button" class="btn btn-secondary btn-xs" data-role="cmd" data-cmd="agentFsAddDir">+ 添加目录</button>
+ <button type="button" class="btn btn-secondary btn-xs" data-role="cmd" data-cmd="agentFsAddDir" data-i18n="agent-fs.btn.add-dir">+ Add Dir</button>
  </div>
  </div>
  <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
- <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="agentSaveFs">保存文件设置</button>
- <span id="agent-fs-saved" style="display:none;color:var(--success);font-size:12px;">✓ 已保存</span>
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="agentSaveFs" data-i18n="agent-fs.btn.save">Save File Settings</button>
+ <span id="agent-fs-saved" style="display:none;color:var(--success);font-size:12px;" data-i18n="agent-fs.saved">✓ Saved</span>
  </div>
 
  <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="switchAgentSub" data-sub="chat" style="margin-top:16px;">← Back</button>
@@ -292,51 +292,51 @@
  <!-- ══════ Automation Tab ══════ -->
  <section id="tab-automation" class="tab-content">
  <div class="tab-header">
- <h2>⏰ 自动化任务</h2>
+ <h2 data-i18n="auto.section-title">⏰ Automation Tasks</h2>
  <div class="header-btns">
- <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="automationNew">+ 新建任务</button>
- <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadAutomationTab">🔄 刷新</button>
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="automationNew" data-i18n="auto.btn.new">+ New Task</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadAutomationTab" data-i18n="auto.btn.refresh">🔄 Refresh</button>
  </div>
  </div>
  <div class="card">
- <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">定时任务(cron) · 单次定时(once) · 事件触发(profile 启动/退出)。动作:启动/停止 profile、跑 Agent 任务、同步 S3、自定义 JS。</p>
+ <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;" data-i18n="auto.section-desc">Cron schedules · one-time · event triggers (profile launch/exit). Actions: launch/stop profile, run Agent task, sync S3, custom JS.</p>
  <div id="automation-list" class="profile-grid"><div class="loading">Loading...</div></div>
  </div>
  <div class="card">
  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
- <h3 style="margin:0;">Durable Jobs</h3>
+ <h3 style="margin:0;" data-i18n="auto.jobs-title">Durable Jobs</h3>
  <div style="display:flex;gap:6px;align-items:center;">
  <select id="automation-job-status" data-role="change" data-change-cmd="automationRefreshJobs" style="font-size:11px;padding:4px 6px;">
- <option value="">全部状态</option>
- <option value="running">运行中</option>
- <option value="queued">排队</option>
- <option value="done">完成</option>
- <option value="failed">失败</option>
- <option value="skipped">跳过</option>
- <option value="cancelled">已取消</option>
+ <option value="" data-i18n="auto.filter-all">All statuses</option>
+ <option value="running" data-i18n="auto.status.running">Running</option>
+ <option value="queued" data-i18n="auto.status.queued">Queued</option>
+ <option value="done" data-i18n="auto.status.done">Done</option>
+ <option value="failed" data-i18n="auto.status.failed">Failed</option>
+ <option value="skipped" data-i18n="auto.status.skipped">Skipped</option>
+ <option value="cancelled" data-i18n="auto.status.cancelled">Cancelled</option>
  </select>
- <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="automationRefreshJobs">刷新 Jobs</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="automationRefreshJobs" data-i18n="auto.jobs-refresh">Refresh Jobs</button>
  </div>
  </div>
  <div id="automation-jobs" class="profile-grid"><div class="loading">Loading...</div></div>
  </div>
  <div class="card">
- <h3>执行日志</h3>
- <pre id="automation-log" style="font-size:11px;max-height:200px;overflow:auto;background:var(--surface);padding:8px;border-radius:4px;white-space:pre-wrap;font-family:var(--mono);">(空)</pre>
+ <h3 data-i18n="auto.log-title">Execution Log</h3>
+ <pre id="automation-log" style="font-size:11px;max-height:200px;overflow:auto;background:var(--surface);padding:8px;border-radius:4px;white-space:pre-wrap;font-family:var(--mono);" data-i18n="auto.log-empty">(empty)</pre>
  </div>
  </section>
 
  <!-- ══════ Workflows Tab ══════ -->
  <section id="tab-runs" class="tab-content">
  <div class="tab-header">
- <h2>🤖 Agent 运行记录</h2>
+ <h2 data-i18n="runs.section-title">🤖 Agent Runs</h2>
  <div class="header-btns">
- <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadRunsTab">🔄 刷新</button>
- <button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="runsClear">清空</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadRunsTab" data-i18n="runs.btn.refresh">🔄 Refresh</button>
+ <button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="runsClear" data-i18n="runs.btn.clear">Clear</button>
  </div>
  </div>
  <div class="card">
- <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">每次 Agent 任务(对话或定时触发)的执行步骤、变量、耗时与结果。点击查看完整步骤时间线。</p>
+ <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;" data-i18n="runs.section-desc">Steps, variables, duration, and result of each Agent task (chat or scheduled). Click to view the full step timeline.</p>
  <div id="agent-run-list" class="profile-grid"><div class="loading">Loading...</div></div>
  </div>
  </section>
@@ -344,22 +344,22 @@
  <!-- ══════ DB Tab ══════ -->
  <section id="tab-db" class="tab-content">
  <div class="tab-header">
- <h2>📊 Agent 数据库</h2>
+ <h2 data-i18n="db.section-title">📊 Agent Database</h2>
  <div class="header-btns">
- <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadDbTab">🔄 刷新</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadDbTab" data-i18n="db.btn.refresh">🔄 Refresh</button>
  </div>
  </div>
  <div style="display:flex;gap:16px;align-items:flex-start;">
  <div class="card" style="flex:0 0 260px;">
- <h4 style="margin:0 0 8px;">表</h4>
+ <h4 style="margin:0 0 8px;" data-i18n="db.tables-heading">Tables</h4>
  <div id="db-tables" style="font-size:12px;"><div class="loading">Loading...</div></div>
  </div>
  <div class="card" style="flex:1;min-width:0;">
- <h4 style="margin:0 0 8px;">SQL</h4>
+ <h4 style="margin:0 0 8px;" data-i18n="db.sql-heading">SQL</h4>
  <textarea id="db-sql" rows="3" placeholder="SELECT * FROM customers LIMIT 10" style="width:100%;font-family:var(--mono);font-size:12px;box-sizing:border-box;"></textarea>
  <div class="btn-row" style="margin:6px 0;">
- <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="dbRunSql">▶ 运行</button>
- <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="dbRunSql" data-cmd-arg="exec">⚡ 执行(写/DDL)</button>
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="dbRunSql" data-i18n="db.btn.run">▶ Run</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="dbRunSql" data-cmd-arg="exec" data-i18n="db.btn.exec">⚡ Execute (write/DDL)</button>
  </div>
  <div id="db-result" style="font-size:11px;overflow:auto;max-height:420px;"></div>
  </div>
@@ -368,20 +368,20 @@
 
  <section id="tab-activity" class="tab-content">
  <div class="tab-header">
-  <h2>📜 活动审计</h2>
+  <h2 data-i18n="activity.section-title">📜 Activity Audit</h2>
   <div class="header-btns">
    <select id="activity-filter" data-role="change" data-change-cmd="activityFilter" style="font-size:12px;padding:4px 8px;">
-     <option value="">全部</option>
-     <option value="profile">Profile</option>
-     <option value="proxy">代理</option>
-     <option value="account">账号</option>
-     <option value="llm">LLM</option>
-     <option value="sync">同步</option>
-     <option value="automation">自动化</option>
-     <option value="agent">Agent</option>
+     <option value="" data-i18n="activity.filter-all">All</option>
+     <option value="profile" data-i18n="activity.filter-profile">Profile</option>
+     <option value="proxy" data-i18n="activity.filter-proxy">Proxy</option>
+     <option value="account" data-i18n="activity.filter-account">Account</option>
+     <option value="llm" data-i18n="activity.filter-llm">LLM</option>
+     <option value="sync" data-i18n="activity.filter-sync">Sync</option>
+     <option value="automation" data-i18n="activity.filter-automation">Automation</option>
+     <option value="agent" data-i18n="activity.filter-agent">Agent</option>
    </select>
-   <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadActivity">🔄 刷新</button>
-   <button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="activityClear">🗑 清空</button>
+   <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="loadActivity" data-i18n="activity.btn.refresh">🔄 Refresh</button>
+   <button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="activityClear" data-i18n="activity.btn.clear">🗑 Clear</button>
   </div>
  </div>
  <div id="activity-list" style="padding:8px 12px;font-size:12px;max-height:70vh;overflow:auto;"></div>
@@ -390,16 +390,16 @@
 <!-- Approval dialog (risky-operation authorization) -->
 <dialog id="dlg-approval">
  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
- <h3 style="margin:0;">⚠️ 操作授权</h3>
+ <h3 style="margin:0;" data-i18n="approval.dialog-title">⚠️ Operation Authorization</h3>
  <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="approvalDeny" data-cmd-arg="close">✕</button>
  </div>
- <p style="font-size:13px;margin:0 0 6px;">Agent 请求执行一个敏感操作,需要你确认:</p>
+ <p style="font-size:13px;margin:0 0 6px;" data-i18n="approval.dialog-desc">The Agent requests a sensitive operation and needs your confirmation:</p>
  <div id="approval-desc" style="padding:10px;background:var(--surface);border-radius:6px;font-family:var(--mono);font-size:12px;margin-bottom:12px;word-break:break-all;"></div>
  <div id="approval-detail" style="font-size:11px;color:var(--text-muted);margin-bottom:14px;"></div>
  <div class="btn-row">
- <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="approvalAllow" data-cmd-arg="once">✓ 允许一次</button>
- <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="approvalAllow" data-cmd-arg="always">✓ 始终允许</button>
- <button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="approvalDeny" data-cmd-arg="deny">✗ 拒绝</button>
+ <button class="btn btn-primary btn-sm" data-role="cmd" data-cmd="approvalAllow" data-cmd-arg="once" data-i18n="approval.btn.allow-once">✓ Allow Once</button>
+ <button class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="approvalAllow" data-cmd-arg="always" data-i18n="approval.btn.allow-always">✓ Always Allow</button>
+ <button class="btn btn-danger btn-sm" data-role="cmd" data-cmd="approvalDeny" data-cmd-arg="deny" data-i18n="approval.btn.deny">✗ Deny</button>
  </div>
 </dialog>
 
@@ -610,7 +610,7 @@ Personal, macos, en-GB, Europe/London, 67890,"></textarea>
  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
  <h3 style="margin:0;">🧩 <span id="ext-dlg-title">Extensions</span></h3>
  <div style="display:flex;gap:6px;">
- <button type="button" class="btn btn-primary btn-sm" data-role="cmd" data-cmd="switchTab" data-tab="extensions">管理扩展仓库</button>
+ <button type="button" class="btn btn-primary btn-sm" data-role="cmd" data-cmd="switchTab" data-tab="extensions" data-i18n="ext.btn.manage-repo">Manage Extension Repo</button>
  <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog">✕</button>
  </div>
  </div>
@@ -729,44 +729,44 @@ Personal, macos, en-GB, Europe/London, 67890,"></textarea>
 <dialog id="dlg-automation" class="dialog-wide">
  <form method="dialog" data-role="submit" data-submit-cmd="saveAutomation">
  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
- <h3 style="margin:0;">⏰ <span id="auto-dlg-title">新建任务</span></h3>
+ <h3 style="margin:0;">⏰ <span id="auto-dlg-title">New Task</span></h3>
  <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-automation">✕</button>
  </div>
  <input type="hidden" id="auto-id">
- <div class="form-row"><label>名称</label><input id="auto-name" placeholder="如:每天9点启动demo"></div>
- <h4 style="margin:14px 0 6px;font-size:13px;">触发条件</h4>
- <div class="form-row"><label>类型</label>
+ <div class="form-row"><label data-i18n="auto-editor.label-name">Name</label><input id="auto-name" placeholder="e.g. launch demo daily at 9" data-i18n-placeholder="auto-editor.name-placeholder"></div>
+ <h4 style="margin:14px 0 6px;font-size:13px;" data-i18n="auto-editor.trigger-title">Trigger</h4>
+ <div class="form-row"><label data-i18n="auto-editor.trigger-type">Type</label>
  <select id="auto-trigger-type">
- <option value="cron">定时(cron)</option>
- <option value="once">单次定时</option>
- <option value="event">事件触发</option>
+ <option value="cron" data-i18n="auto-editor.trigger-cron">Schedule (cron)</option>
+ <option value="once" data-i18n="auto-editor.trigger-once">One-time</option>
+ <option value="event" data-i18n="auto-editor.trigger-event">Event trigger</option>
  </select>
  </div>
- <div id="auto-cron-row" class="form-row"><label>Cron 表达式</label><input id="auto-cron" placeholder="分 时 日 月 周 (如 0 9 * * * = 每天9点)"><span id="auto-cron-hint" style="font-size:10px;color:var(--text-muted);margin-left:8px;"></span></div>
- <div id="auto-once-row" class="form-row" style="display:none;"><label>执行时间</label><input id="auto-once" type="datetime-local" step="1"></div>
- <div id="auto-event-row" class="form-row" style="display:none;"><label>事件</label>
- <select id="auto-event"><option value="profile:launched">profile 启动</option><option value="profile:exited">profile 退出</option></select>
+ <div id="auto-cron-row" class="form-row"><label data-i18n="auto-editor.cron-label">Cron Expression</label><input id="auto-cron" placeholder="min hr day mon dow (e.g. 0 9 * * * = daily at 9)" data-i18n-placeholder="auto-editor.cron-placeholder"><span id="auto-cron-hint" style="font-size:10px;color:var(--text-muted);margin-left:8px;"></span></div>
+ <div id="auto-once-row" class="form-row" style="display:none;"><label data-i18n="auto-editor.once-label">Run Time</label><input id="auto-once" type="datetime-local" step="1"></div>
+ <div id="auto-event-row" class="form-row" style="display:none;"><label data-i18n="auto-editor.event-label">Event</label>
+ <select id="auto-event"><option value="profile:launched" data-i18n="auto-editor.event-launched">profile launched</option><option value="profile:exited" data-i18n="auto-editor.event-exited">profile exited</option></select>
  </div>
- <div id="auto-event-filter-row" class="form-row" style="display:none;"><label>限定 profile(可选)</label><select id="auto-event-profile"><option value="">(所有 profile)</option></select></div>
- <h4 style="margin:14px 0 6px;font-size:13px;">执行动作</h4>
- <div class="form-row"><label>动作</label>
+ <div id="auto-event-filter-row" class="form-row" style="display:none;"><label data-i18n="auto-editor.event-filter">Limit to profile (optional)</label><select id="auto-event-profile"><option value="" data-i18n="auto-editor.event-all">(all profiles)</option></select></div>
+ <h4 style="margin:14px 0 6px;font-size:13px;" data-i18n="auto-editor.action-title">Action</h4>
+ <div class="form-row"><label data-i18n="auto-editor.action-type">Action</label>
  <select id="auto-action-type">
- <option value="launch-profile">启动 profile</option>
- <option value="stop-profile">停止 profile</option>
- <option value="agent-task">跑 Agent 任务</option>
- <option value="sync-push">同步到 S3 (Push)</option>
- <option value="sync-pull">从 S3 拉取 (Pull)</option>
- <option value="custom-js">自定义 JS</option>
+ <option value="launch-profile" data-i18n="auto-editor.action-launch">Launch profile</option>
+ <option value="stop-profile" data-i18n="auto-editor.action-stop">Stop profile</option>
+ <option value="agent-task" data-i18n="auto-editor.action-agent">Run Agent task</option>
+ <option value="sync-push" data-i18n="auto-editor.action-push">Sync to S3 (Push)</option>
+ <option value="sync-pull" data-i18n="auto-editor.action-pull">Pull from S3 (Pull)</option>
+ <option value="custom-js" data-i18n="auto-editor.action-js">Custom JS</option>
  </select>
  </div>
- <div id="auto-action-profile-row" class="form-row"><label>Profile</label><select id="auto-action-profile"><option value="">(选择)</option></select></div>
- <div id="auto-action-template-row" class="form-row" style="display:none;"><label>任务模板</label><select id="auto-action-template"><option value="">(不使用模板)</option></select><div id="auto-template-hint" style="font-size:10px;color:var(--text-muted);margin-top:4px;"></div></div>
- <div id="auto-action-prompt-row" class="form-row" style="display:none;"><label>Agent Prompt</label><textarea id="auto-action-prompt" rows="3" placeholder="如:打开 example.com 截图保存"></textarea></div>
- <div id="auto-action-js-row" class="form-row" style="display:none;"><label>JS 代码</label><textarea id="auto-action-js" rows="4" placeholder="在 main 进程执行,return 返回值" style="font-family:var(--mono);font-size:11px;"></textarea></div>
- <div class="form-row"><label><input type="checkbox" id="auto-enabled" checked> 启用</label></div>
+ <div id="auto-action-profile-row" class="form-row"><label data-i18n="auto-editor.profile-label">Profile</label><select id="auto-action-profile"><option value="" data-i18n="auto-editor.profile-select">(select)</option></select></div>
+ <div id="auto-action-template-row" class="form-row" style="display:none;"><label data-i18n="auto-editor.template-label">Task Template</label><select id="auto-action-template"><option value="" data-i18n="auto.no-template">(no template)</option></select><div id="auto-template-hint" style="font-size:10px;color:var(--text-muted);margin-top:4px;"></div></div>
+ <div id="auto-action-prompt-row" class="form-row" style="display:none;"><label>Agent Prompt</label><textarea id="auto-action-prompt" rows="3" placeholder="e.g. open example.com and screenshot" data-i18n-placeholder="auto-editor.prompt-placeholder"></textarea></div>
+ <div id="auto-action-js-row" class="form-row" style="display:none;"><label>JS</label><textarea id="auto-action-js" rows="4" placeholder="Runs in main process; return a value" data-i18n-placeholder="auto-editor.js-placeholder" style="font-family:var(--mono);font-size:11px;"></textarea></div>
+ <div class="form-row"><label><input type="checkbox" id="auto-enabled" checked> <span data-i18n="auto-editor.enabled-label">Enabled</span></label></div>
  <div class="btn-row" style="margin-top:12px;">
- <button type="submit" class="btn btn-primary btn-sm">保存</button>
- <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-automation">取消</button>
+ <button type="submit" class="btn btn-primary btn-sm" data-i18n="auto.btn.save">Save</button>
+ <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-automation" data-i18n="auto.btn.cancel">Cancel</button>
  </div>
  </form>
 </dialog>
@@ -774,7 +774,7 @@ Personal, macos, en-GB, Europe/London, 67890,"></textarea>
 <!-- Automation log detail dialog -->
 <dialog id="dlg-auto-log" class="dialog-wide">
  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
- <h3 style="margin:0;">📋 执行记录详情</h3>
+ <h3 style="margin:0;" data-i18n="dlg.log-title">📋 Execution Record Detail</h3>
  <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-auto-log">✕</button>
  </div>
  <pre id="auto-log-detail" style="font-size:12px;max-height:400px;overflow:auto;background:var(--surface);padding:12px;border-radius:4px;white-space:pre-wrap;font-family:var(--mono);"></pre>
@@ -783,7 +783,7 @@ Personal, macos, en-GB, Europe/London, 67890,"></textarea>
 <!-- Automation job detail dialog -->
 <dialog id="dlg-auto-job" class="dialog-wide">
  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
- <h3 style="margin:0;">🧾 <span id="auto-job-title">Job 详情</span></h3>
+ <h3 style="margin:0;">🧾 <span id="auto-job-title">Job Detail</span></h3>
  <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-auto-job">✕</button>
  </div>
  <div id="auto-job-actions" style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:8px;"></div>
@@ -793,13 +793,13 @@ Personal, macos, en-GB, Europe/London, 67890,"></textarea>
 <!-- Workflow editor dialog -->
 <dialog id="dlg-agent-run" class="dialog-wide">
  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
- <h3 style="margin:0;">🤖 <span id="agent-run-title">运行详情</span></h3>
+ <h3 style="margin:0;">🤖 <span id="agent-run-title">Run Detail</span></h3>
  <button type="button" class="btn btn-secondary btn-sm" data-role="cmd" data-cmd="close-dialog" data-cmd-target="dlg-agent-run">✕</button>
  </div>
  <div id="agent-run-meta" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;"></div>
- <h4 style="margin:8px 0 4px;font-size:13px;">🔀 变量</h4>
+ <h4 style="margin:8px 0 4px;font-size:13px;" data-i18n="runs.vars-title">🔀 Variables</h4>
  <div id="agent-run-vars" style="font-size:11px;margin-bottom:12px;max-height:120px;overflow-y:auto;"></div>
- <h4 style="margin:8px 0 4px;font-size:13px;">📋 步骤时间线</h4>
+ <h4 style="margin:8px 0 4px;font-size:13px;" data-i18n="runs.steps-title">📋 Step Timeline</h4>
  <div id="agent-run-steps" style="max-height:360px;overflow-y:auto;"></div>
 </dialog>
 
